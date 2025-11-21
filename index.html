@@ -3059,24 +3059,20 @@
        */
       applyScore(score, options = {}) {
         if (this.score && score) {
-          const currentScoreJson = alphaTab.model.JsonConverter.scoreToJson(this.score);
-          const newScoreJson = alphaTab.model.JsonConverter.scoreToJson(score);
-          if (currentScoreJson === newScoreJson) {
-            this.toggleLoading(false);
-            return;
+          try {
+            const currentScoreJson = alphaTab.model.JsonConverter.scoreToJson(this.score);
+            const newScoreJson = alphaTab.model.JsonConverter.scoreToJson(score);
+            if (currentScoreJson === newScoreJson) {
+              this.toggleLoading(false);
+              return;
+            }
+          } catch (e) {
+            // If comparison fails, proceed with applying the new score
+            console.warn('Score comparison failed, applying new score anyway:', e);
           }
         }
 
         this.score = score;
-        }
-
-        this.score = score;
-        }
-
-        this.score = score;
-          return;
-        }
-
         if (this.api && !options.skipApiRender) {
           this.api.renderScore(score);
         }
