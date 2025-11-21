@@ -92,10 +92,6 @@ python -m http.server 8080
 1. **HTML Validation**:
 
 2. **JavaScript Syntax Check** (optional, Node.js required):
-   ```bash
-   # Extract and check JS syntax (if Node.js is available)
-   node --check <(sed -n '/<script>/,/<\/script>/p' index.html | sed '1d;$d')
-   ```
 
 3. **Manual Browser Testing**:
    - Open in Chrome/Firefox/Safari
