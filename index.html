@@ -3058,13 +3058,16 @@
        * @returns {void}
        */
       applyScore(score, options = {}) {
-        if (!score) return;
+        if (this.score && score) {
+          const currentScoreJson = alphaTab.model.JsonConverter.scoreToJson(this.score);
+          const newScoreJson = alphaTab.model.JsonConverter.scoreToJson(score);
+          if (currentScoreJson === newScoreJson) {
+            this.toggleLoading(false);
+            return;
+          }
+        }
 
-        const isSameScore = this.score === score && options.skipApiRender;
         this.score = score;
-
-        if (isSameScore) {
-          this.toggleLoading(false);
           return;
         }
 
