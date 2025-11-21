@@ -2464,7 +2464,7 @@
 
         this.customRenderer.partialLayoutFinished.on((result) => {
           try {
-            if (result?.id != null) {
+            if (result?.id !== undefined) {
               this.customRenderer.renderResult(result.id);
             }
           } catch (error) {
@@ -2564,8 +2564,7 @@
             .then((buffer) => {
               clearTimeout(timeoutId);
               if (this.synth) {
-                const soundFont = new Uint8Array(buffer);
-                this.synth.loadSoundFont(soundFont);
+                this.synth.loadSoundFont(new Uint8Array(buffer));
               }
             })
             .catch((error) => {
