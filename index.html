@@ -3135,6 +3135,10 @@
         } else if (typeof content === 'string' && content.trim().startsWith('<svg')) {
           const doc = new DOMParser().parseFromString(content, 'image/svg+xml');
           const svgElement = doc.documentElement;
+          chunk.appendChild(content);
+        } else if (typeof content === 'string' && content.trim().startsWith('<svg')) {
+          const doc = new DOMParser().parseFromString(content, 'image/svg+xml');
+          const svgElement = doc.documentElement;
           if (svgElement && svgElement.nodeName !== 'parsererror') {
             chunk.appendChild(svgElement);
           }
