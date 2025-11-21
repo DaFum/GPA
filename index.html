@@ -3143,16 +3143,17 @@
           chunk.appendChild(content);
         } else if (typeof content === 'string') {
           const trimmed = content.trim();
+          chunk.appendChild(content);
+        } else if (typeof content === 'string') {
+          const trimmed = content.trim();
           if (trimmed.startsWith('<svg')) {
             const doc = new DOMParser().parseFromString(trimmed, 'image/svg+xml');
             const svgElement = doc.documentElement;
-            if (svgElement && svgElement.nodeName !== 'parsererror') {
+            if (svgElement && svgElement.nodeName.toLowerCase() !== 'parsererror') {
               chunk.appendChild(svgElement);
             } else {
-              console.warn('Invalid SVG chunk skipped');
+              console.warn('Failed to parse SVG chunk');
             }
-          } else {
-            console.warn('Non-SVG string content skipped in render chunk');
           }
         } else {
           console.warn('Unsupported renderResult content skipped');
