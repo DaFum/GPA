@@ -2116,6 +2116,7 @@
     // ===== Main Application Class =====
     class ProTabApp {
       static DEFAULT_RENDERER_WIDTH = 1200;
+      static SOUNDFONT_LOAD_TIMEOUT_MS = 10000;
 
       constructor(noAlphaTab = false) {
         this.noAlphaTabMode = noAlphaTab;
@@ -2463,7 +2464,7 @@
 
         this.customRenderer.partialLayoutFinished.on((result) => {
           try {
-            if (result?.id) {
+            if (result?.id != null) {
               this.customRenderer.renderResult(result.id);
             }
           } catch (error) {
@@ -2554,7 +2555,7 @@
           this.synth = new alphaTab.synth.AlphaSynthWebWorkerApi(output, scriptUrl, alphaTab.LogLevel.Info);
 
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          const timeoutId = setTimeout(() => controller.abort(), ProTabApp.SOUNDFONT_LOAD_TIMEOUT_MS);
 
           fetch('https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2', {
             signal: controller.signal
@@ -3463,6 +3464,7 @@
             URL.revokeObjectURL(url);
           }, 100);
         } catch (error) {
+          console.error('MIDI download failed:', error);
           URL.revokeObjectURL(url);
           throw error;
         }
