@@ -74,11 +74,7 @@ open index.html      # macOS
 start index.html     # Windows
 ```
 
-**Success Criteria:** 
-- The page loads without console errors
-- The drop zone is visible with the message "Drop File Here or click to browse"
-- Theme toggle works (moon/sun icon in header)
-- No 404 errors for Font Awesome or Google Fonts
+**Success:** Page loads without errors, drop zone visible, theme toggle works, no 404s for fonts/icons.
 
 ### Validation Steps
 
@@ -94,36 +90,19 @@ wc -l index.html && du -h index.html
 ```
 Expected output: ~3531 lines, ~107KB
 
-**3. Verify External Dependencies are Reachable**
+**3. Verify External CDNs (optional)**
 ```bash
 curl -I https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/alphaTab.min.js
-curl -I https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
 ```
-Expected: HTTP 200 responses (note: may fail in restricted environments)
+Expected: HTTP 200 (may fail in restricted environments)
 
 ### Testing
 
-**There are NO automated tests** in this repository.
-
-Manual testing approach:
-1. Start a local web server (see "Running the Application" above)
-2. Open the application in a browser
-3. Test core functionality:
-   - Drop zone accepts files (though you need actual .gp/.gpx files to test fully)
-   - Theme toggle switches between dark and light modes
-   - Sidebar can collapse/expand
-   - Transport controls are visible
-   - Analysis dashboard opens when icon is clicked
+**NO automated tests exist.** Manual testing: Start server, open in browser, verify drop zone, theme toggle, sidebar collapse, transport controls, and analysis dashboard.
 
 ### Linting
 
-**There are NO linters configured** (no ESLint, Prettier, or other tools).
-
-Code style conventions (inferred from existing code):
-- Indentation: 2 spaces
-- JavaScript: ES6+ class syntax, camelCase variables
-- CSS: BEM-like naming for components (e.g., `.btn-transport`, `.track-item`)
-- Comments: Section headers use `/* ===== Section Name ===== */` format
+**NO linters configured.** Style: 2-space indent, ES6+ classes, camelCase, BEM-like CSS naming, section headers use `/* ===== Name ===== */`.
 
 ## Making Changes
 
@@ -136,72 +115,39 @@ Code style conventions (inferred from existing code):
 
 ### Common Change Patterns
 
-**Adding a new UI feature:**
-1. Add HTML markup in the appropriate section (search for section comments like `<!-- Header -->`)
-2. Add CSS in the corresponding style section (search for `/* ===== Section Name ===== */`)
-3. Add JavaScript in the appropriate agent section or add event listeners in `ProTabApp` class (starts at line ~2117)
-4. Test by running the application
+**Adding UI features:** Add HTML (search `<!-- Section -->`), CSS (search `/* ===== Section ===== */`), JS in `ProTabApp` class (line ~2117), then test.
 
-**Modifying themes:**
-- Dark theme variables: `:root { ... }` (starts at line ~18)
-- Light theme overrides: `[data-theme="light"] { ... }` (starts at line ~65)
+**Modifying themes:** Dark theme at `:root` (line ~18), light theme at `[data-theme="light"]` (line ~65).
 
-**Adding keyboard shortcuts:**
-- Find the keyboard event handler in `ProTabApp.setupEventListeners()` (search for `keydown` event)
+**Keyboard shortcuts:** Find `keydown` event handler in `ProTabApp.setupEventListeners()`.
 
-**Modifying AlphaTab integration:**
-- AlphaTab API configuration is in `ProTabApp.initializeAlphaTab()` (search for `soundFont:`)
-- Renderer settings are in the AlphaTab settings object
+**AlphaTab changes:** Configuration in `ProTabApp.initializeAlphaTab()` (search `soundFont:`).
 
 ### After Making Changes
 
-1. **Save `index.html`**
-2. **Reload the page in your browser** (hard refresh: Ctrl+Shift+R / Cmd+Shift+R)
-3. **Check browser console** for JavaScript errors (F12 → Console tab)
-4. **Verify the UI** looks correct and functionality works
-5. **Test in both dark and light themes** (click theme toggle button)
+1. Save `index.html` and reload browser (Ctrl+Shift+R / Cmd+Shift+R)
+2. Check browser console for errors (F12 → Console)
+3. Verify UI and test both dark/light themes
 
 ### Common Issues & Workarounds
 
-**AlphaTab fails to load:**
-- The script includes fallback CDN URLs (lines ~1762-1764)
-- If one CDN is down, the script automatically tries alternatives
-- Check browser console for specific error messages
-
-**CORS errors when testing locally:**
-- Always use an HTTP server (python3 -m http.server), never file:// protocol
-- CDN resources require HTTP/HTTPS protocol to load correctly
-
-**Changes not reflecting:**
-- Clear browser cache (Ctrl+Shift+Delete)
-- Do a hard refresh (Ctrl+Shift+R)
-- Check if you edited the correct file (there is only one: `index.html`)
+**AlphaTab fails:** Script has fallback CDN URLs (lines ~1762-1764). Check browser console.
+**CORS errors:** Use HTTP server (python3 -m http.server), never file:// protocol.
+**Changes not reflecting:** Hard refresh (Ctrl+Shift+R) or clear browser cache.
 
 ## Git Workflow
 
-### Checking Status
 ```bash
-git --no-pager status
-git --no-pager diff
+git --no-pager status && git --no-pager diff  # Check changes
+git add index.html && git commit -m "Description" && git push  # Commit
 ```
-
-### Committing Changes
-```bash
-git add index.html
-git commit -m "Brief description of changes"
-git push
-```
-
-**Note:** If you create any new files (documentation, etc.), ensure they are intentional. This repo should remain minimal.
+**Note:** Keep repo minimal. Only commit intentional files.
 
 ## CI/CD & Deployment
 
-**There are NO CI/CD pipelines, GitHub Actions, or automated checks configured.**
+**NO CI/CD pipelines or automated checks configured.**
 
-Deployment options:
-- **GitHub Pages:** Can serve `index.html` directly from the repository
-- **Netlify/Vercel:** Drop deployment - just upload the repository
-- **Any static host:** Upload `index.html` and serve it
+Deploy to: GitHub Pages, Netlify, Vercel, or any static host (just upload `index.html`).
 
 ## Key Code Locations
 
@@ -234,19 +180,13 @@ Deployment options:
 
 ## Important Notes
 
-1. **Trust these instructions** - this is a unique single-file architecture. Don't search for build tools that don't exist.
-
-2. **No dependencies to install** - if you think you need to run `npm install` or `pip install`, you don't. Everything loads from CDN.
-
-3. **Browser is the test environment** - there are no unit tests. Manual browser testing is the validation method.
-
-4. **AGENTS.md is your architecture guide** - read it before making structural changes to understand the agent boundaries.
-
-5. **Line numbers may shift** - use comments and class names to find code sections rather than relying on line numbers.
-
-6. **External resources may be blocked** - if working in a restricted network environment, AlphaTab and Font Awesome may not load. This is environmental, not a code issue.
-
-7. **No .gitignore exists** - be careful not to commit temporary files, build artifacts, or IDE configs. Add a .gitignore if needed.
+1. **Trust these instructions** - unique single-file architecture. Don't search for build tools that don't exist.
+2. **No dependencies to install** - everything loads from CDN.
+3. **Browser is the test environment** - no unit tests, manual browser testing only.
+4. **AGENTS.md is your architecture guide** - read before structural changes.
+5. **Line numbers may shift** - use comments/class names to find code.
+6. **External resources may be blocked** - CDN issues are environmental, not code problems.
+7. **No .gitignore exists** - don't commit temp files or IDE configs.
 
 ## Quick Reference Commands
 
