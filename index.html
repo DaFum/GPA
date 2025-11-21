@@ -3130,23 +3130,29 @@
        * @param {number} height Chunk height in pixels.
        * @returns {void}
        */
-      displayRenderChunk(renderResult, width, height) {
-        if (!this.els.customRenderTarget) return;
-
-        const chunk = document.createElement('div');
         chunk.className = 'render-chunk';
-        chunk.style.width = `${width}px`;
-        chunk.style.height = `${height}px`;
+        if (Number.isFinite(width)) chunk.style.width = `${width}px`;
+        if (Number.isFinite(height)) chunk.style.height = `${height}px`;
 
         const content = renderResult?.element || renderResult;
+
         if (content instanceof Element) {
           chunk.appendChild(content);
-        } else if (typeof content === 'string' && content.trim().startsWith('<svg')) {
-          const doc = new DOMParser().parseFromString(content, 'image/svg+xml');
-          const svgElement = doc.documentElement;
-          if (svgElement && svgElement.nodeName !== 'parsererror') {
-            chunk.appendChild(svgElement);
+        } else if (typeof content === 'string') {
+          const trimmed = content.trim();
+          if (trimmed.startsWith('<svg')) {
+            const doc = new DOMParser().parseFromString(trimmed, 'image/svg+xml');
+            const svgElement = doc.documentElement;
+            if (svgElement && svgElement.nodeName !== 'parsererror') {
+              chunk.appendChild(svgElement);
+            } else {
+              console.warn('Invalid SVG chunk skipped');
+            }
+          } else {
+            console.warn('Non-SVG string content skipped in render chunk');
           }
+        } else {
+          console.warn('Unsupported renderResult content skipped');
         }
         }
 
