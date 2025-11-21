@@ -2546,7 +2546,9 @@
             .then((response) => response.arrayBuffer())
             .then((buffer) => {
               const soundFont = new Uint8Array(buffer);
-              this.synth.loadSoundFont(soundFont);
+              if (this.synth) {
+                this.synth.loadSoundFont(soundFont);
+              }
             })
             .catch((error) => console.error('SoundFont load error:', error));
         } catch (error) {
