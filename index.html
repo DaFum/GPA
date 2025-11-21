@@ -3418,16 +3418,17 @@
         const buffer = midiFile.toBinary();
         const blob = new Blob([buffer], { type: 'audio/midi' });
         const url = URL.createObjectURL(blob);
-        try {
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `${this.score?.title || 'export'}.mid`;
-          document.body.appendChild(link);
-          link.click();
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${this.score?.title ?? 'export'}.mid`;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Use a timeout to ensure the download has initiated before cleanup.
+        setTimeout(() => {
           document.body.removeChild(link);
-        } finally {
           URL.revokeObjectURL(url);
-        }
+        }, 100);
       }
 
       handleExport() {
