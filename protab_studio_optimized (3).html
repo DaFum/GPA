@@ -1,0 +1,3226 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProTab Studio | Professional Edition</title>
+  <meta name="description" content="Professional Guitar Tab & Score Viewer with Advanced Analysis">
+  <meta name="theme-color" content="#6366f1">
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* ===== CSS Variables & Theming ===== */
+    :root {
+      /* Dark Theme (Default) */
+      --bg-app: #0f1115;
+      --bg-panel: #161920;
+      --bg-surface: #1f232b;
+      --bg-overlay: rgba(0, 0, 0, 0.7);
+      --border: #2d3748;
+      --border-light: #374151;
+      
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-dim: rgba(99, 102, 241, 0.15);
+      --primary-glow: rgba(99, 102, 241, 0.4);
+      
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+      
+      --radius: 8px;
+      --radius-sm: 4px;
+      --radius-lg: 12px;
+      
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      
+      /* AlphaTab Colors */
+      --at-cursor-bar: rgba(99, 102, 241, 0.1);
+      --at-cursor-beat: #6366f1;
+      
+      /* Layout */
+      --header-height: 60px;
+      --sidebar-width: 340px;
+      --sidebar-collapsed: 60px;
+      
+      /* Transitions */
+      --transition-fast: 150ms ease;
+      --transition-base: 250ms ease;
+      --transition-slow: 350ms ease;
+    }
+
+    /* Light Theme */
+    [data-theme="light"] {
+      --bg-app: #f8fafc;
+      --bg-panel: #ffffff;
+      --bg-surface: #f1f5f9;
+      --bg-overlay: rgba(0, 0, 0, 0.5);
+      --border: #e2e8f0;
+      --border-light: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --primary-dim: rgba(99, 102, 241, 0.1);
+    }
+
+    /* ===== Base Styles ===== */
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-app);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: background-color var(--transition-base), color var(--transition-base);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Accessibility */
+    :focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--bg-app); }
+    ::-webkit-scrollbar-thumb { 
+      background: var(--border); 
+      border-radius: 5px;
+      border: 2px solid var(--bg-app);
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ===== Header ===== */
+    .app-header {
+      height: var(--header-height);
+      background: rgba(22, 25, 32, 0.9);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    [data-theme="light"] .app-header {
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.125rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      letter-spacing: -0.025em;
+    }
+    
+    .logo i { 
+      color: var(--primary); 
+      font-size: 1.25rem;
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .header-actions { 
+      display: flex; 
+      gap: 0.5rem; 
+      align-items: center;
+    }
+
+    /* Mobile Menu Toggle */
+    .mobile-menu-toggle {
+      display: none;
+      width: 40px;
+      height: 40px;
+      justify-content: center;
+      align-items: center;
+      border-radius: var(--radius);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .mobile-menu-toggle:hover {
+      background: var(--primary-dim);
+      border-color: var(--primary);
+    }
+
+    /* ===== Main Layout ===== */
+    .app-main {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      flex: 1;
+      overflow: hidden;
+      transition: grid-template-columns var(--transition-base);
+    }
+
+    .app-main.sidebar-collapsed {
+      grid-template-columns: var(--sidebar-collapsed) 1fr;
+    }
+
+    /* ===== Sidebar ===== */
+    .sidebar {
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      transition: all var(--transition-base);
+      position: relative;
+    }
+
+    .sidebar-toggle {
+      position: absolute;
+      top: 1rem;
+      right: -12px;
+      width: 24px;
+      height: 24px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      cursor: pointer;
+      z-index: 10;
+      transition: all var(--transition-fast);
+      border: 2px solid var(--bg-app);
+    }
+
+    .sidebar-toggle:hover {
+      transform: scale(1.1);
+    }
+
+    .sidebar-collapsed .sidebar-toggle {
+      transform: rotate(180deg);
+    }
+
+    .sidebar-section {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      transition: all var(--transition-base);
+    }
+
+    .sidebar-collapsed .sidebar-section {
+      padding: 0.75rem;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all var(--transition-fast);
+    }
+
+    .sidebar-collapsed .section-title {
+      font-size: 0;
+      margin-bottom: 0.5rem;
+    }
+
+    .badge {
+      background: var(--bg-surface);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 0.7rem;
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    /* ===== File Upload ===== */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-base);
+      background: var(--bg-surface);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--primary);
+      background: var(--primary-dim);
+      transform: scale(1.02);
+    }
+    
+    .drop-zone i { 
+      font-size: 2.5rem; 
+      color: var(--primary); 
+      margin-bottom: 1rem; 
+      display: block;
+      transition: transform var(--transition-base);
+    }
+    
+    .drop-zone:hover i {
+      transform: translateY(-3px);
+    }
+    
+    .drop-zone strong { 
+      display: block; 
+      font-size: 0.95rem; 
+      margin-bottom: 0.5rem; 
+    }
+    
+    .drop-zone span { 
+      font-size: 0.75rem; 
+      color: var(--text-muted); 
+    }
+
+    .sidebar-collapsed .drop-zone {
+      padding: 1rem 0.5rem;
+    }
+
+    .sidebar-collapsed .drop-zone strong,
+    .sidebar-collapsed .drop-zone span {
+      display: none;
+    }
+
+    /* ===== TEX Editor ===== */
+    .tex-editor {
+      width: 100%;
+      min-height: 100px;
+      max-height: 200px;
+      background: #000;
+      color: #a5b4fc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 0.8rem;
+      resize: vertical;
+      line-height: 1.5;
+      tab-size: 2;
+    }
+
+    .tex-editor:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-dim);
+    }
+
+    .action-row { 
+      display: flex; 
+      gap: 0.5rem; 
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    /* ===== Track List ===== */
+    .track-list { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .track-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem;
+      background: transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      gap: 0.75rem;
+      border: 1px solid transparent;
+      position: relative;
+    }
+    
+    .track-item:hover { 
+      background: rgba(255,255,255,0.03); 
+      border-color: var(--border);
+      transform: translateX(2px);
+    }
+    
+    .track-item.active { 
+      background: var(--primary-dim); 
+      border-color: var(--primary);
+    }
+    
+    .track-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--primary);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    
+    .track-icon { 
+      width: 28px; 
+      text-align: center; 
+      font-size: 1.1rem; 
+      color: var(--text-muted);
+      transition: color var(--transition-fast);
+    }
+    
+    .track-item.active .track-icon { 
+      color: var(--primary); 
+    }
+    
+    .track-info { 
+      flex: 1; 
+      min-width: 0; 
+    }
+    
+    .track-name { 
+      font-size: 0.9rem; 
+      font-weight: 500; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+      display: block; 
+    }
+
+    .track-details {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .sidebar-collapsed .track-info {
+      display: none;
+    }
+
+    .track-controls { 
+      display: flex; 
+      gap: 4px; 
+    }
+    
+    .track-btn {
+      width: 28px; 
+      height: 28px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-app);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      transition: all var(--transition-fast);
+    }
+    
+    .track-btn:hover { 
+      border-color: var(--text-muted); 
+      color: var(--text-main);
+      transform: scale(1.05);
+    }
+    
+    .track-btn.mute.active { 
+      background: var(--danger); 
+      border-color: var(--danger); 
+      color: white; 
+    }
+    
+    .track-btn.solo.active { 
+      background: var(--warning); 
+      border-color: var(--warning); 
+      color: white; 
+    }
+
+    .sidebar-collapsed .track-controls {
+      display: none;
+    }
+
+    /* ===== Score Area ===== */
+    .score-wrapper {
+      position: relative;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    [data-theme="light"] .score-wrapper {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .score-controls {
+      background: rgba(22, 25, 32, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+
+    [data-theme="light"] .score-controls {
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .control-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    #at-container {
+      flex: 1;
+      background: white;
+      overflow: auto;
+      position: relative;
+    }
+
+    /* ===== Transport Controls ===== */
+    .transport-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-transport {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+      font-size: 1rem;
+    }
+
+    .btn-transport:hover {
+      border-color: var(--primary);
+      background: var(--primary-dim);
+      transform: scale(1.1);
+    }
+
+    .btn-transport:active {
+      transform: scale(0.95);
+    }
+
+    .btn-transport.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      width: 48px;
+      height: 48px;
+    }
+
+    .btn-transport.primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    .btn-transport.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    /* ===== Sliders ===== */
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 120px;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .slider:hover {
+      background: var(--border-light);
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--primary);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 2px solid var(--bg-app);
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 0 8px var(--primary-dim);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: var(--primary);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 2px solid var(--bg-app);
+    }
+
+    .slider-value {
+      font-size: 0.85rem;
+      font-weight: 600;
+      min-width: 45px;
+      text-align: center;
+      color: var(--text-main);
+    }
+
+    .time-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      background: var(--bg-surface);
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      min-width: 100px;
+      text-align: center;
+    }
+
+    /* ===== Buttons ===== */
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--primary-dim);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    .btn-small {
+      padding: 0.375rem 0.75rem; 
+      font-size: 0.8rem;
+    }
+
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn:disabled:hover {
+      background: var(--bg-surface);
+      border-color: var(--border);
+      transform: none;
+    }
+
+    /* ===== Analysis Dashboard ===== */
+    .analysis-dashboard {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-overlay);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 2rem;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      animation: fadeIn var(--transition-base);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .dashboard-content {
+      background: var(--bg-panel);
+      border-radius: var(--radius-lg);
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp var(--transition-base);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .dashboard-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: var(--bg-panel);
+      z-index: 10;
+    }
+
+    .dashboard-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .dashboard-body {
+      padding: 1.5rem;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--bg-surface);
+      padding: 1.25rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      transition: all var(--transition-base);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .dashboard-section {
+      margin-bottom: 2rem;
+    }
+
+    .dashboard-section h3 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .key-display {
+      text-align: center;
+      padding: 2rem;
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .key-note {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: block;
+    }
+
+    .key-scale {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    #pitch-histogram {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      height: 120px;
+      gap: 4px;
+      padding: 1rem;
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .bar {
+      flex: 1;
+      background: linear-gradient(to top, var(--primary), var(--primary-hover));
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      position: relative;
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .bar:hover {
+      opacity: 0.8;
+      transform: scaleY(1.05);
+    }
+
+    .bar-label {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    #rhythm-heatmap {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
+      gap: 2px;
+      padding: 1rem;
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .heat-cell {
+      aspect-ratio: 1;
+      background: var(--primary);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .heat-cell:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 0 2px var(--primary-glow);
+    }
+
+    .complexity-display {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    #complexity-circle {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 8px solid var(--success);
+      margin: 0 auto 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 700;
+      transition: all var(--transition-slow);
+      position: relative;
+    }
+
+    #complexity-circle::after {
+      content: '';
+      position: absolute;
+      inset: -12px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      opacity: 0.3;
+    }
+
+    .tech-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .tech-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--bg-surface);
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.5rem;
+      border: 1px solid var(--border);
+      transition: all var(--transition-fast);
+    }
+
+    .tech-list li:hover {
+      transform: translateX(4px);
+      border-color: var(--primary);
+    }
+
+    .tech-list li span:first-child {
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .tech-list li span:last-child {
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* ===== Tables ===== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    thead {
+      background: var(--bg-app);
+    }
+
+    th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+      border-bottom: 2px solid var(--border);
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    tr:hover {
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    /* ===== Loading & Toast ===== */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-overlay);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      position: absolute;
+      bottom: 30%;
+      color: var(--text-main);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: calc(var(--header-height) + 1rem);
+      right: 1rem;
+      z-index: 2001;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: var(--shadow-lg);
+      animation: slideInRight var(--transition-base);
+      pointer-events: all;
+      max-width: 400px;
+    }
+
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .toast.success {
+      border-left: 4px solid var(--success);
+    }
+
+    .toast.error {
+      border-left: 4px solid var(--danger);
+    }
+
+    .toast.warning {
+      border-left: 4px solid var(--warning);
+    }
+
+    .toast.info {
+      border-left: 4px solid var(--info);
+    }
+
+    .toast-icon {
+      font-size: 1.25rem;
+      width: 24px;
+      text-align: center;
+    }
+
+    .toast.success .toast-icon { color: var(--success); }
+    .toast.error .toast-icon { color: var(--danger); }
+    .toast.warning .toast-icon { color: var(--warning); }
+    .toast.info .toast-icon { color: var(--info); }
+
+    .toast-content {
+      flex: 1;
+    }
+
+    .toast-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .toast-message {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0;
+      transition: color var(--transition-fast);
+    }
+
+    .toast-close:hover {
+      color: var(--text-main);
+    }
+
+    /* ===== Utility Classes ===== */
+    .hidden { display: none !important; }
+    .invisible { visibility: hidden; }
+    .opacity-0 { opacity: 0; }
+    .opacity-50 { opacity: 0.5; }
+    .opacity-100 { opacity: 1; }
+
+    /* ===== Responsive Design ===== */
+    @media (max-width: 768px) {
+      :root {
+        --sidebar-width: 280px;
+        --header-height: 56px;
+      }
+
+      .mobile-menu-toggle {
+        display: flex;
+      }
+
+      .app-main {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        bottom: 0;
+        width: var(--sidebar-width);
+        transform: translateX(-100%);
+        z-index: 90;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .sidebar-toggle {
+        display: none;
+      }
+
+      .score-controls {
+        padding: 0.75rem;
+        gap: 0.75rem;
+      }
+
+      .control-group {
+        flex-wrap: wrap;
+        width: 100%;
+      }
+
+      .slider-container {
+        width: 100%;
+      }
+
+      .dashboard-content {
+        max-height: 100vh;
+        border-radius: 0;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header-actions {
+        gap: 0.25rem;
+      }
+
+      .btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+      }
+
+      .toast-container {
+        left: 1rem;
+        right: 1rem;
+      }
+
+      .toast {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app-header {
+        padding: 0 0.75rem;
+      }
+
+      .logo span {
+        display: none;
+      }
+
+      .btn-transport {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+      }
+
+      .btn-transport.primary {
+        width: 42px;
+        height: 42px;
+      }
+
+      .time-display {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.5rem;
+        min-width: 80px;
+      }
+    }
+
+    /* ===== Print Styles ===== */
+    @media print {
+      .app-header,
+      .sidebar,
+      .score-controls,
+      .loading-overlay,
+      .toast-container,
+      .analysis-dashboard {
+        display: none !important;
+      }
+
+      .app-main {
+        grid-template-columns: 1fr !important;
+      }
+
+      #at-container {
+        background: white;
+        color: black;
+      }
+    }
+
+    /* ===== Keyboard Navigation ===== */
+    .keyboard-nav:focus {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* ===== Settings Panel ===== */
+    .settings-panel {
+      position: fixed;
+      top: var(--header-height);
+      right: 0;
+      bottom: 0;
+      width: 320px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      transform: translateX(100%);
+      transition: transform var(--transition-base);
+      z-index: 80;
+      overflow-y: auto;
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .settings-panel.open {
+      transform: translateX(0);
+    }
+
+    .settings-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .settings-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .settings-content {
+      padding: 1.5rem;
+    }
+
+    .setting-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .setting-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .setting-description {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      display: inline-block;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--border);
+      transition: all var(--transition-fast);
+      border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      transition: all var(--transition-fast);
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background: var(--primary);
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(24px);
+    }
+
+    /* Zoom Controls */
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .zoom-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      min-width: 50px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header" role="banner">
+    <div class="logo">
+      <i class="fa-solid fa-music" aria-hidden="true"></i>
+      <span>ProTab Studio</span>
+    </div>
+    
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle sidebar menu">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+    
+    <div class="header-actions">
+      <button class="btn btn-icon" id="btn-theme" aria-label="Toggle theme">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+      
+      <button class="btn btn-icon" id="btn-settings" aria-label="Open settings">
+        <i class="fa-solid fa-cog"></i>
+      </button>
+      
+      <button class="btn btn-icon" id="btn-fullscreen" aria-label="Toggle fullscreen">
+        <i class="fa-solid fa-expand"></i>
+      </button>
+      
+      <button class="btn btn-primary btn-small" id="btn-export" aria-label="Export score">
+        <i class="fa-solid fa-download"></i>
+        <span>Export</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="app-main">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar" role="complementary">
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+      
+      <!-- File Upload -->
+      <section class="sidebar-section" aria-labelledby="file-section">
+        <h2 class="section-title" id="file-section">
+          <span>File</span>
+          <span class="badge">GP | GP3-7 | MusicXML | TEX</span>
+        </h2>
+        
+        <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Drop files here or click to upload">
+          <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+          <strong>Drop File Here</strong>
+          <span>or click to browse</span>
+          <input type="file" id="file-input" class="hidden" accept=".gp,.gp3,.gp4,.gp5,.gp6,.gp7,.gpx,.xml,.musicxml,.mxl,.tex" aria-label="File input">
+        </div>
+        
+        <!-- File Meta -->
+        <div id="meta-container" class="meta-info"></div>
+      </section>
+
+      <!-- TEX Editor -->
+      <section class="sidebar-section" aria-labelledby="tex-section">
+        <h2 class="section-title" id="tex-section">
+          <span>AlphaTab TEX</span>
+        </h2>
+        
+        <textarea 
+          id="tex-input" 
+          class="tex-editor" 
+          placeholder="\\title &quot;My Song&quot;
+\\tempo 120
+\\track &quot;Guitar&quot;
+\\staff{score} \\tuning e5 b4 g4 d4 a3 e3
+.
+1.1 2.1 3.1 4.1 |
+5.2 4.2 3.2 2.2 |"
+          aria-label="TEX notation input"
+          spellcheck="false"
+        ></textarea>
+        
+        <div class="action-row">
+          <button class="btn btn-small" id="btn-render-tex" aria-label="Render TEX notation">
+            <i class="fa-solid fa-play"></i>
+            Render
+          </button>
+          <button class="btn btn-small" id="btn-demo-drums" aria-label="Load drum demo">
+            <i class="fa-solid fa-drum"></i>
+            Drum Demo
+          </button>
+          <button class="btn btn-small" id="btn-clear-tex" aria-label="Clear TEX input">
+            <i class="fa-solid fa-eraser"></i>
+            Clear
+          </button>
+        </div>
+      </section>
+
+      <!-- Track List -->
+      <section class="sidebar-section" aria-labelledby="tracks-section">
+        <h2 class="section-title" id="tracks-section">
+          <span>Tracks</span>
+          <span class="badge" id="track-count">0</span>
+        </h2>
+        
+        <div class="track-list" id="track-list" role="list" aria-label="Track list"></div>
+      </section>
+
+      <!-- Analysis -->
+      <section class="sidebar-section" aria-labelledby="analysis-section">
+        <h2 class="section-title" id="analysis-section">
+          <span>Tools</span>
+        </h2>
+        
+        <div class="action-row">
+          <button class="btn btn-small" id="btn-show-analysis" aria-label="Show score analysis">
+            <i class="fa-solid fa-chart-line"></i>
+            Analysis
+          </button>
+          <button class="btn btn-small" id="btn-print" aria-label="Print score">
+            <i class="fa-solid fa-print"></i>
+            Print
+          </button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Score Area -->
+    <div class="score-wrapper">
+      <!-- Transport Controls -->
+      <div class="score-controls">
+        <div class="transport-controls">
+          <button class="btn-transport" id="btn-stop" aria-label="Stop playback">
+            <i class="fa-solid fa-stop"></i>
+          </button>
+          <button class="btn-transport primary" id="btn-play-pause" aria-label="Play or pause">
+            <i class="fa-solid fa-play"></i>
+          </button>
+        </div>
+
+        <div class="control-group">
+          <span class="control-label">Position</span>
+          <div class="slider-container">
+            <input 
+              type="range" 
+              id="scrubber" 
+              class="slider" 
+              min="0" 
+              max="100" 
+              value="0"
+              aria-label="Playback position"
+            >
+            <div class="time-display">
+              <span id="time-current">00:00</span> / <span id="time-total">00:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <span class="control-label">Tempo</span>
+          <div class="slider-container">
+            <input 
+              type="range" 
+              id="tempo-slider" 
+              class="slider" 
+              min="25" 
+              max="200" 
+              value="100"
+              aria-label="Playback tempo"
+            >
+            <span class="slider-value" id="tempo-val">100%</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <button class="btn btn-small" id="btn-metronome" aria-label="Toggle metronome">
+            <i class="fa-solid fa-drum"></i>
+            Metronome
+          </button>
+          
+          <button class="btn btn-small" id="btn-loop" aria-label="Toggle loop">
+            <i class="fa-solid fa-repeat"></i>
+            Loop
+          </button>
+        </div>
+
+        <div class="control-group zoom-controls">
+          <span class="control-label">Zoom</span>
+          <button class="btn btn-icon btn-small" id="btn-zoom-out" aria-label="Zoom out">
+            <i class="fa-solid fa-minus"></i>
+          </button>
+          <span class="zoom-value" id="zoom-val">100%</span>
+          <button class="btn btn-icon btn-small" id="btn-zoom-in" aria-label="Zoom in">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- AlphaTab Container -->
+      <div id="at-container" role="main" aria-label="Musical score display"></div>
+    </div>
+  </main>
+
+  <!-- Settings Panel -->
+  <aside class="settings-panel" id="settings-panel" role="complementary" aria-labelledby="settings-title">
+    <div class="settings-header">
+      <h2 class="settings-title" id="settings-title">Settings</h2>
+      <button class="btn btn-icon btn-small" id="btn-close-settings" aria-label="Close settings">
+        <i class="fa-solid fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="settings-content">
+      <div class="setting-group">
+        <label class="setting-label" for="setting-notation">
+          Notation Display
+        </label>
+        <select id="setting-notation" class="btn" style="width: 100%;">
+          <option value="score">Score Only</option>
+          <option value="tab">Tab Only</option>
+          <option value="scoretab" selected>Score + Tab</option>
+        </select>
+        <p class="setting-description">Choose how to display the musical notation</p>
+      </div>
+      
+      <div class="setting-group">
+        <label class="setting-label">
+          Auto-scroll during playback
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="setting-autoscroll" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <p class="setting-description">Automatically scroll the score during playback</p>
+      </div>
+      
+      <div class="setting-group">
+        <label class="setting-label">
+          Count-in before playback
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="setting-countin">
+          <span class="toggle-slider"></span>
+        </label>
+        <p class="setting-description">Play a count-in before starting playback</p>
+      </div>
+      
+      <div class="setting-group">
+        <label class="setting-label" for="setting-soundfont">
+          Sound Quality
+        </label>
+        <select id="setting-soundfont" class="btn" style="width: 100%;">
+          <option value="low">Low (Faster)</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High (Slower)</option>
+        </select>
+        <p class="setting-description">Higher quality requires more bandwidth</p>
+      </div>
+      
+      <div class="setting-group">
+        <button class="btn btn-primary" id="btn-reset-settings" style="width: 100%;">
+          <i class="fa-solid fa-undo"></i>
+          Reset to Defaults
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Analysis Dashboard -->
+  <div class="analysis-dashboard hidden" id="analysis-dashboard" role="dialog" aria-labelledby="dashboard-title">
+    <div class="dashboard-content">
+      <div class="dashboard-header">
+        <h2 class="dashboard-title" id="dashboard-title">
+          <i class="fa-solid fa-chart-line"></i>
+          Score Analysis
+        </h2>
+        <button class="btn btn-icon" id="btn-close-analysis" aria-label="Close analysis">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="dashboard-body">
+        <!-- Overview Stats -->
+        <div class="dashboard-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Bars</div>
+            <div class="stat-value" id="an-bars">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Tempo</div>
+            <div class="stat-value"><span id="an-tempo">0</span> BPM</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Time Signature</div>
+            <div class="stat-value" id="an-sig">4/4</div>
+          </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="dashboard-section">
+          <h3><i class="fa-solid fa-info-circle"></i> Metadata</h3>
+          <ul class="tech-list" id="an-meta-list"></ul>
+        </div>
+
+        <!-- Harmony Analysis -->
+        <div class="dashboard-section">
+          <h3><i class="fa-solid fa-music"></i> Harmony Analysis</h3>
+          <div class="key-display" id="an-key-display">
+            <span class="key-note">-</span>
+            <span class="key-scale">-</span>
+          </div>
+          <p id="an-harmony-details" style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem;"></p>
+          
+          <h4 style="margin: 1.5rem 0 1rem; font-size: 0.9rem;">Pitch Distribution</h4>
+          <div id="pitch-histogram"></div>
+        </div>
+
+        <!-- Rhythm Density -->
+        <div class="dashboard-section">
+          <h3><i class="fa-solid fa-drum"></i> Rhythm Density</h3>
+          <div id="rhythm-heatmap"></div>
+        </div>
+
+        <!-- Complexity -->
+        <div class="dashboard-section">
+          <h3><i class="fa-solid fa-gauge-high"></i> Complexity Score</h3>
+          <div class="complexity-display">
+            <div id="complexity-circle">
+              <span id="complexity-val">0</span>
+            </div>
+            <ul class="tech-list" id="an-tech-list"></ul>
+          </div>
+        </div>
+
+        <!-- Instruments -->
+        <div class="dashboard-section">
+          <h3><i class="fa-solid fa-guitar"></i> Instruments</h3>
+          <div id="an-instrument-table"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay hidden" id="loading-overlay" aria-hidden="true">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading...</div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- AlphaTab Library with Fallback Loading -->
+  <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/alphaTab.min.js" 
+          onerror="console.error('Primary AlphaTab CDN failed, trying fallback...'); loadAlphaTabFallback();">
+  </script>
+  
+  <script>
+    // Fallback loading mechanism for AlphaTab
+    function loadAlphaTabFallback() {
+      const fallbackUrls = [
+        'https://unpkg.com/@coderline/alphatab@1.3.0/dist/alphaTab.min.js',
+        'https://cdn.skypack.dev/@coderline/alphatab@1.3.0',
+        'https://ga.jspm.io/npm:@coderline/alphatab@1.3.0/dist/alphaTab.min.js'
+      ];
+      
+      let currentFallback = 0;
+      
+      function tryNextFallback() {
+        if (currentFallback >= fallbackUrls.length) {
+          console.error('All AlphaTab CDN sources failed');
+          // Initialize app without AlphaTab
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+              setTimeout(() => {
+                window.app = new ProTabApp(true); // true = no AlphaTab mode
+              }, 100);
+            });
+          } else {
+            setTimeout(() => {
+              window.app = new ProTabApp(true);
+            }, 100);
+          }
+          return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = fallbackUrls[currentFallback];
+        script.onerror = () => {
+          console.error(`Fallback CDN ${currentFallback + 1} failed`);
+          currentFallback++;
+          tryNextFallback();
+        };
+        script.onload = () => {
+          console.log('AlphaTab loaded successfully from fallback CDN');
+          // Use the normal initialization path
+        };
+        document.head.appendChild(script);
+      }
+      
+      tryNextFallback();
+    }
+    
+    // Check if AlphaTab loaded properly after main script loads
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        if (typeof alphaTab === 'undefined' && !window.app) {
+          console.error('AlphaTab not loaded after page load, attempting fallback');
+          loadAlphaTabFallback();
+        }
+      }, 1000);
+    });
+  </script>
+  
+  <script>
+    // ===== Utility Functions =====
+    // Using standard DOM methods instead of custom shortcuts to avoid confusion
+    
+    // Local Storage Helper
+    class StorageManager {
+      constructor(prefix = 'protab_') {
+        this.prefix = prefix;
+      }
+      
+      get(key, defaultValue = null) {
+        try {
+          const value = localStorage.getItem(this.prefix + key);
+          return value ? JSON.parse(value) : defaultValue;
+        } catch (e) {
+          console.error('Storage get error:', e);
+          return defaultValue;
+        }
+      }
+      
+      set(key, value) {
+        try {
+          localStorage.setItem(this.prefix + key, JSON.stringify(value));
+          return true;
+        } catch (e) {
+          console.error('Storage set error:', e);
+          return false;
+        }
+      }
+      
+      remove(key) {
+        try {
+          localStorage.removeItem(this.prefix + key);
+          return true;
+        } catch (e) {
+          console.error('Storage remove error:', e);
+          return false;
+        }
+      }
+      
+      clear() {
+        try {
+          Object.keys(localStorage)
+            .filter(key => key.startsWith(this.prefix))
+            .forEach(key => localStorage.removeItem(key));
+          return true;
+        } catch (e) {
+          console.error('Storage clear error:', e);
+          return false;
+        }
+      }
+    }
+
+    // Toast Notification System
+    class ToastManager {
+      constructor(containerId = 'toast-container') {
+        this.container = document.getElementById(containerId);
+        this.toasts = [];
+      }
+      
+      show(message, type = 'info', title = '', duration = 4000) {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icons = {
+          success: 'fa-check-circle',
+          error: 'fa-exclamation-circle',
+          warning: 'fa-exclamation-triangle',
+          info: 'fa-info-circle'
+        };
+        
+        const iconClass = icons[type] || icons.info;
+        const displayTitle = title || (type.charAt(0).toUpperCase() + type.slice(1));
+        
+        toast.innerHTML = `
+          <div class="toast-icon">
+            <i class="fa-solid ${iconClass}"></i>
+          </div>
+          <div class="toast-content">
+            <div class="toast-title">${this.escapeHtml(displayTitle)}</div>
+            <div class="toast-message">${this.escapeHtml(message)}</div>
+          </div>
+          <button class="toast-close" aria-label="Close notification">
+            <i class="fa-solid fa-times"></i>
+          </button>
+        `;
+        
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', () => this.remove(toast));
+        
+        this.container.appendChild(toast);
+        this.toasts.push(toast);
+        
+        if (duration > 0) {
+          setTimeout(() => this.remove(toast), duration);
+        }
+        
+        return toast;
+      }
+      
+      remove(toast) {
+        if (!toast || !this.toasts.includes(toast)) return;
+        
+        toast.style.animation = 'slideInRight 0.25s reverse';
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+          const index = this.toasts.indexOf(toast);
+          if (index > -1) {
+            this.toasts.splice(index, 1);
+          }
+        }, 250);
+      }
+      
+      clearAll() {
+        this.toasts.forEach(toast => this.remove(toast));
+      }
+      
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    }
+
+    // ===== Score Analyzer Class =====
+    class ScoreAnalyzer {
+      constructor(score) {
+        this.score = score;
+      }
+
+      getMeta() {
+        const s = this.score;
+        return {
+          title: s.title || 'Untitled',
+          artist: s.artist || 'Unknown',
+          album: s.album || '',
+          bars: s.masterBars.length,
+          tempo: s.tempo,
+          mainSig: `${s.masterBars[0]?.timeSignatureNumerator || 4}/${s.masterBars[0]?.timeSignatureDenominator || 4}`,
+          tempoEvents: s.masterBars.filter(mb => mb.tempoAutomation).length,
+          timeSigChanges: this.getTimeSigChanges()
+        };
+      }
+
+      getTimeSigChanges() {
+        let changes = 0;
+        let lastSig = null;
+        this.score.masterBars.forEach(mb => {
+          const sig = `${mb.timeSignatureNumerator}/${mb.timeSignatureDenominator}`;
+          if (lastSig && lastSig !== sig) changes++;
+          lastSig = sig;
+        });
+        return changes;
+      }
+
+      getHarmony() {
+        const pitchCounts = new Array(12).fill(0);
+        let totalNotes = 0;
+
+        this.score.tracks.forEach(track => {
+          track.staves.forEach(staff => {
+            staff.bars.forEach(bar => {
+              bar.voices.forEach(voice => {
+                voice.beats.forEach(beat => {
+                  beat.notes.forEach(note => {
+                    if (!note.isRest && !note.isPercussion) {
+                      const pitchClass = note.realValue % 12;
+                      pitchCounts[pitchClass]++;
+                      totalNotes++;
+                    }
+                  });
+                });
+              });
+            });
+          });
+        });
+
+        const key = this.detectKey(pitchCounts);
+        return {
+          histogram: pitchCounts,
+          totalNotes,
+          bestKey: key.root,
+          bestScale: key.scale
+        };
+      }
+
+      detectKey(pitchCounts) {
+        const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+        const majorPattern = [2,2,1,2,2,2,1];
+        const minorPattern = [2,1,2,2,1,2,2];
+
+        let bestScore = 0;
+        let bestKey = { root: 'C', scale: 'Major' };
+
+        for (let root = 0; root < 12; root++) {
+          // Test Major
+          let majorScore = 0;
+          let pos = root;
+          for (let interval of majorPattern) {
+            majorScore += pitchCounts[pos % 12];
+            pos += interval;
+          }
+
+          if (majorScore > bestScore) {
+            bestScore = majorScore;
+            bestKey = { root: noteNames[root], scale: 'Major' };
+          }
+
+          // Test Minor
+          let minorScore = 0;
+          pos = root;
+          for (let interval of minorPattern) {
+            minorScore += pitchCounts[pos % 12];
+            pos += interval;
+          }
+
+          if (minorScore > bestScore) {
+            bestScore = minorScore;
+            bestKey = { root: noteNames[root], scale: 'Minor' };
+          }
+        }
+
+        return bestKey;
+      }
+
+      getRhythm() {
+        const barDensity = [];
+        let maxDensity = 0;
+
+        this.score.masterBars.forEach((mb, mbIndex) => {
+          let barNoteCount = 0;
+          this.score.tracks.forEach(track => {
+            track.staves.forEach(staff => {
+              if (staff.bars[mbIndex]) {
+                staff.bars[mbIndex].voices.forEach(voice => {
+                  voice.beats.forEach(beat => {
+                    barNoteCount += beat.notes.length;
+                  });
+                });
+              }
+            });
+          });
+          barDensity.push(barNoteCount);
+          maxDensity = Math.max(maxDensity, barNoteCount);
+        });
+
+        return { density: barDensity, maxDensity };
+      }
+
+      getTechniqueAndComplexity(rhythm, harmony) {
+        const techniques = {
+          bends: 0,
+          slides: 0,
+          hammers: 0,
+          deadNotes: 0,
+          palmMutes: 0
+        };
+
+        this.score.tracks.forEach(track => {
+          track.staves.forEach(staff => {
+            staff.bars.forEach(bar => {
+              bar.voices.forEach(voice => {
+                voice.beats.forEach(beat => {
+                  beat.notes.forEach(note => {
+                    if (note.bendPoints?.length > 0) techniques.bends++;
+                    if (note.slideInType || note.slideOutType) techniques.slides++;
+                    if (note.isHammerOn || note.isPullOff) techniques.hammers++;
+                    if (note.isDead) techniques.deadNotes++;
+                    if (note.isPalmMute) techniques.palmMutes++;
+                  });
+                });
+              });
+            });
+          });
+        });
+
+        const complexityScore = Math.min(100, Math.round(
+          (techniques.bends * 2) +
+          (techniques.slides * 1.5) +
+          (techniques.hammers * 1) +
+          (techniques.deadNotes * 0.5) +
+          (techniques.palmMutes * 0.5) +
+          (rhythm.maxDensity * 0.1) +
+          (harmony.totalNotes / 100)
+        ));
+
+        return { techniques, totalScore: complexityScore };
+      }
+
+      getInstruments() {
+        return this.score.tracks.map(track => ({
+          name: track.name,
+          type: track.staves[0]?.isPercussion ? 'Percussion' : 'Melodic',
+          tuning: track.staves[0]?.tuning?.map(t => t.displayName || '').join(' ') || 'Standard',
+          strings: track.staves[0]?.tuning?.length || 6
+        }));
+      }
+    }
+
+    // ===== Main Application Class =====
+    class ProTabApp {
+      constructor(noAlphaTab = false) {
+        this.noAlphaTabMode = noAlphaTab;
+        this.api = null;
+        this.analyzer = null;
+        this.storage = new StorageManager();
+        this.toast = new ToastManager();
+        
+        this.state = {
+          isPlaying: false,
+          currentTrack: 0,
+          zoom: 100,
+          theme: 'dark',
+          sidebarCollapsed: false,
+          mobileMenuOpen: false,
+          settings: {
+            notation: 'scoretab',
+            autoScroll: true,
+            countIn: false,
+            soundQuality: 'medium'
+          }
+        };
+
+        this.els = {
+          // Header
+          themeBtn: document.getElementById('btn-theme'),
+          settingsBtn: document.getElementById('btn-settings'),
+          fullscreenBtn: document.getElementById('btn-fullscreen'),
+          exportBtn: document.getElementById('btn-export'),
+          mobileMenuToggle: document.getElementById('mobile-menu-toggle'),
+          
+          // Sidebar
+          sidebar: document.getElementById('sidebar'),
+          sidebarToggle: document.getElementById('sidebar-toggle'),
+          dropZone: document.getElementById('drop-zone'),
+          fileInput: document.getElementById('file-input'),
+          metaContainer: document.getElementById('meta-container'),
+          texInput: document.getElementById('tex-input'),
+          btnRenderTex: document.getElementById('btn-render-tex'),
+          btnDemoDrums: document.getElementById('btn-demo-drums'),
+          btnClearTex: document.getElementById('btn-clear-tex'),
+          trackList: document.getElementById('track-list'),
+          btnShowAnalysis: document.getElementById('btn-show-analysis'),
+          btnPrint: document.getElementById('btn-print'),
+          
+          // Transport
+          playPauseBtn: document.getElementById('btn-play-pause'),
+          stopBtn: document.getElementById('btn-stop'),
+          scrubber: document.getElementById('scrubber'),
+          timeCurrent: document.getElementById('time-current'),
+          timeTotal: document.getElementById('time-total'),
+          tempoSlider: document.getElementById('tempo-slider'),
+          tempoVal: document.getElementById('tempo-val'),
+          metronomeBtn: document.getElementById('btn-metronome'),
+          loopBtn: document.getElementById('btn-loop'),
+          
+          // Zoom
+          zoomIn: document.getElementById('btn-zoom-in'),
+          zoomOut: document.getElementById('btn-zoom-out'),
+          zoomVal: document.getElementById('zoom-val'),
+          
+          // Settings Panel
+          settingsPanel: document.getElementById('settings-panel'),
+          closeSettings: document.getElementById('btn-close-settings'),
+          settingNotation: document.getElementById('setting-notation'),
+          settingAutoScroll: document.getElementById('setting-autoscroll'),
+          settingCountIn: document.getElementById('setting-countin'),
+          settingSoundFont: document.getElementById('setting-soundfont'),
+          resetSettings: document.getElementById('btn-reset-settings'),
+          
+          // Analysis Dashboard
+          dashboard: document.getElementById('analysis-dashboard'),
+          btnCloseAnalysis: document.getElementById('btn-close-analysis'),
+          
+          // Loading
+          loadingOverlay: document.getElementById('loading-overlay')
+        };
+
+        this.init();
+      }
+
+      init() {
+        this.loadSettings();
+        
+        // Check if AlphaTab is available
+        if (this.noAlphaTabMode || typeof alphaTab === 'undefined') {
+          console.warn('Initializing without AlphaTab');
+          this.showBasicInterface();
+          this.toast.show('Music notation system unavailable. Basic features only.', 'warning');
+        } else {
+          this.initAlphaTab();
+        }
+        
+        this.bindEvents();
+        this.setupKeyboardShortcuts();
+        this.applyTheme();
+        
+        // Show welcome message
+        if (!this.noAlphaTabMode) {
+          this.toast.show('Welcome to ProTab Studio! Drop a file to get started.', 'info');
+        }
+      }
+
+      loadSettings() {
+        const saved = this.storage.get('settings');
+        if (saved) {
+          this.state.settings = { ...this.state.settings, ...saved };
+        }
+        
+        const theme = this.storage.get('theme', 'dark');
+        this.state.theme = theme;
+        
+        const sidebarCollapsed = this.storage.get('sidebarCollapsed', false);
+        this.state.sidebarCollapsed = sidebarCollapsed;
+        
+        this.applySettings();
+      }
+
+      applySettings() {
+        // Apply notation setting
+        this.els.settingNotation.value = this.state.settings.notation;
+        
+        // Apply checkboxes
+        this.els.settingAutoScroll.checked = this.state.settings.autoScroll;
+        this.els.settingCountIn.checked = this.state.settings.countIn;
+        
+        // Apply sound quality
+        this.els.settingSoundFont.value = this.state.settings.soundQuality;
+        
+        // Apply sidebar state
+        if (this.state.sidebarCollapsed && window.innerWidth > 768) {
+          document.querySelector('.app-main').classList.add('sidebar-collapsed');
+        }
+      }
+
+      saveSettings() {
+        this.storage.set('settings', this.state.settings);
+        this.storage.set('theme', this.state.theme);
+        this.storage.set('sidebarCollapsed', this.state.sidebarCollapsed);
+      }
+
+      initAlphaTab() {
+        try {
+          // Check for AlphaTab availability
+          if (typeof alphaTab === 'undefined') {
+            console.error('AlphaTab library not loaded');
+            this.showBasicInterface();
+            return;
+          }
+          
+          // Ensure container exists
+          const container = document.getElementById('at-container');
+          if (!container) {
+            console.error('AlphaTab container element not found');
+            setTimeout(() => this.initAlphaTab(), 100); // Retry after short delay
+            return;
+          }
+          
+          // Simple initialization with proper configuration
+          console.log('Attempting AlphaTab initialization...');
+          
+          try {
+            // Initialize with full configuration including player and soundFont
+            const settings = {
+              core: {
+                engine: 'html5',
+                logLevel: 0,
+                useWorkers: true // Enable workers for better performance
+              },
+              display: {
+                staveProfile: 'scoretab',
+                layoutMode: 'page',
+                padding: [40, 20, 40, 20],
+                resources: {
+                  barNumberColor: '#94a3b8',
+                  mainGlyphColor: '#f1f5f9',
+                  secondaryGlyphColor: '#94a3b8'
+                }
+              },
+              notation: {
+                notationMode: 'guitarPro',
+                fingeringMode: 'scoreForcePiano',
+                elements: {
+                  scoreTitle: true,
+                  scoreSubTitle: true,
+                  scoreArtist: true,
+                  scoreAlbum: true,
+                  scoreMusic: true,
+                  scoreWords: true,
+                  guitarTuning: true,
+                  trackNames: true
+                }
+              },
+              player: {
+                enablePlayer: true,
+                enableCursor: true,
+                enableUserInteraction: true,
+                soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2',
+                scrollMode: 'continuous',
+                scrollSpeed: 300
+              }
+            };
+            
+            this.api = new alphaTab.AlphaTabApi(container, settings);
+            
+            if (this.api) {
+              console.log('AlphaTab initialized successfully');
+              this.setupAlphaTabEvents();
+            } else {
+              throw new Error('API object not created');
+            }
+          } catch (initError) {
+            console.error('AlphaTab initialization failed:', initError);
+            // Try fallback initialization
+            this.initAlphaTabFallback();
+          }
+        } catch (error) {
+          console.error('Critical error in initAlphaTab:', error);
+          this.showBasicInterface();
+        }
+      }
+      
+      enhanceAlphaTabSettings() {
+        // This method is no longer needed as we initialize with full settings
+        console.log('AlphaTab already configured with full settings');
+      }
+      
+      initAlphaTabFallback() {
+        // Ensure container exists
+        const container = document.getElementById('at-container');
+        if (!container) {
+          console.error('Container not found for fallback initialization');
+          this.showBasicInterface();
+          return;
+        }
+        
+        // Fallback initialization with basic but functional settings
+        const settings = {
+          core: {
+            engine: 'html5',
+            logLevel: 0,
+            useWorkers: false
+          },
+          display: {
+            staveProfile: 'tab', // Use tab-only mode as fallback
+            layoutMode: 'page',
+            padding: [40, 20, 40, 20]
+          },
+          player: {
+            enablePlayer: true,
+            enableCursor: true,
+            enableUserInteraction: true,
+            soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
+          }
+        };
+        
+        try {
+          this.api = new alphaTab.AlphaTabApi(container, settings);
+          this.setupAlphaTabEvents();
+          this.toast.show('Running in fallback mode - tab notation only', 'warning');
+        } catch (error) {
+          console.error('Failed to initialize AlphaTab even in fallback mode:', error);
+          this.toast.show('Music notation system could not be initialized. Please refresh the page.', 'error');
+          // Show a basic file reader interface
+          this.showBasicInterface();
+        }
+      }
+      
+      setupAlphaTabEvents() {
+        if (!this.api) return;
+        
+        // Event Handlers
+        this.api.renderStarted.on(() => {
+          this.toggleLoading(true);
+        });
+
+        this.api.renderFinished.on(() => {
+          this.toggleLoading(false);
+        });
+
+        this.api.scoreLoaded.on((score) => {
+          this.onScoreLoaded(score);
+        });
+
+        this.api.playerReady.on(() => {
+          this.toast.show('Player ready', 'success');
+        });
+
+        this.api.playerStateChanged.on((args) => {
+          this.state.isPlaying = args.state === 1;
+          this.updateTransportUI();
+        });
+
+        this.api.playerPositionChanged.on((args) => {
+          if (!this.state.isPlaying) return;
+          
+          const percentage = (args.currentTick / args.endTick) * 100;
+          this.els.scrubber.value = percentage;
+          this.els.timeCurrent.textContent = this.formatTime(args.currentTime);
+          this.els.timeTotal.textContent = this.formatTime(args.endTime);
+        });
+
+        this.api.error.on((error) => {
+          console.error('AlphaTab Error:', error);
+          this.toggleLoading(false);
+          
+          // Handle specific error types
+          if (error.type === 'font') {
+            console.warn('Font loading issue detected, attempting fallback');
+            this.initAlphaTabFallback();
+          } else {
+            this.toast.show(`Error: ${error.message || 'Unknown error occurred'}`, 'error');
+          }
+        });
+      }
+      
+      showBasicInterface() {
+        // Show a basic interface when AlphaTab completely fails
+        const container = document.getElementById('at-container');
+        if (!container) {
+          console.error('Container element not found for basic interface');
+          return;
+        }
+        
+        container.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 2rem;">
+            <div style="text-align: center; max-width: 500px;">
+              <i class="fa-solid fa-exclamation-triangle" style="font-size: 3rem; color: var(--warning); margin-bottom: 1rem;"></i>
+              <h2 style="margin-bottom: 1rem;">Music Notation System Unavailable</h2>
+              <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+                The music notation rendering system could not be initialized. 
+                This might be due to network restrictions or browser compatibility issues.
+              </p>
+              <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                <button class="btn btn-primary" onclick="location.reload()">
+                  <i class="fa-solid fa-refresh"></i>
+                  Reload Page
+                </button>
+                <button class="btn" onclick="window.app.tryAlternativeMode()">
+                  <i class="fa-solid fa-tools"></i>
+                  Try Alternative Mode
+                </button>
+              </div>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2rem;">
+                You can still use the TEX editor and analysis features if a file is loaded.
+              </p>
+            </div>
+          </div>
+        `;
+      }
+      
+      tryAlternativeMode() {
+        // Attempt to use a CDN-free version or local resources
+        this.toggleLoading(true);
+        this.toast.show('Attempting alternative initialization...', 'info');
+        
+        // Reset container
+        const container = document.getElementById('at-container');
+        if (!container) {
+          this.toggleLoading(false);
+          this.toast.show('Container element not found', 'error');
+          return;
+        }
+        
+        container.innerHTML = '';
+        
+        // Try with alternative settings
+        setTimeout(() => {
+          const containerEl = document.getElementById('at-container');
+          if (!containerEl) {
+            this.toggleLoading(false);
+            this.toast.show('Container element lost', 'error');
+            return;
+          }
+          
+          const alternativeSettings = {
+            core: { 
+              engine: 'svg', // Try SVG engine as alternative
+              logLevel: 0,
+              useWorkers: false
+            },
+            display: { 
+              staveProfile: 'tab',
+              layoutMode: 'horizontal',
+              scale: 1.0
+            },
+            player: { 
+              enablePlayer: true,
+              enableCursor: true,
+              soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
+            }
+          };
+          
+          try {
+            this.api = new alphaTab.AlphaTabApi(containerEl, alternativeSettings);
+            this.setupAlphaTabEvents();
+            this.toggleLoading(false);
+            this.toast.show('Alternative mode activated - using SVG rendering', 'warning');
+          } catch (e) {
+            console.error('Alternative mode error:', e);
+            this.toggleLoading(false);
+            this.toast.show('Alternative mode failed. Please check your browser settings.', 'error');
+            this.showBasicInterface();
+          }
+        }, 1000);
+      }
+
+      bindEvents() {
+        // Theme Toggle
+        this.els.themeBtn.addEventListener('click', () => {
+          this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+          this.applyTheme();
+          this.saveSettings();
+        });
+
+        // Settings Panel
+        this.els.settingsBtn.addEventListener('click', () => {
+          this.els.settingsPanel.classList.add('open');
+        });
+
+        this.els.closeSettings.addEventListener('click', () => {
+          this.els.settingsPanel.classList.remove('open');
+        });
+
+        // Setting Changes
+        this.els.settingNotation.addEventListener('change', (e) => {
+          this.state.settings.notation = e.target.value;
+          if (this.api) {
+            this.api.settings.display.staveProfile = e.target.value;
+            this.api.updateSettings();
+            this.api.render();
+          }
+          this.saveSettings();
+        });
+
+        this.els.settingAutoScroll.addEventListener('change', (e) => {
+          this.state.settings.autoScroll = e.target.checked;
+          if (this.api) {
+            this.api.settings.player.scrollMode = e.target.checked ? 'continuous' : 'off';
+            this.api.updateSettings();
+          }
+          this.saveSettings();
+        });
+
+        this.els.settingCountIn.addEventListener('change', (e) => {
+          this.state.settings.countIn = e.target.checked;
+          if (this.api) {
+            this.api.countInVolume = e.target.checked ? 1 : 0;
+          }
+          this.saveSettings();
+        });
+
+        this.els.resetSettings.addEventListener('click', () => {
+          this.state.settings = {
+            notation: 'scoretab',
+            autoScroll: true,
+            countIn: false,
+            soundQuality: 'medium'
+          };
+          this.applySettings();
+          this.saveSettings();
+          this.toast.show('Settings reset to defaults', 'success');
+        });
+
+        // Fullscreen
+        this.els.fullscreenBtn.addEventListener('click', () => {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            this.els.fullscreenBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+          } else {
+            document.exitFullscreen();
+            this.els.fullscreenBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+          }
+        });
+
+        // Export
+        this.els.exportBtn.addEventListener('click', () => {
+          this.handleExport();
+        });
+
+        // Mobile Menu
+        this.els.mobileMenuToggle.addEventListener('click', () => {
+          this.state.mobileMenuOpen = !this.state.mobileMenuOpen;
+          this.els.sidebar.classList.toggle('mobile-open', this.state.mobileMenuOpen);
+        });
+
+        // Sidebar Toggle
+        this.els.sidebarToggle.addEventListener('click', () => {
+          this.state.sidebarCollapsed = !this.state.sidebarCollapsed;
+          document.querySelector('.app-main').classList.toggle('sidebar-collapsed', this.state.sidebarCollapsed);
+          this.saveSettings();
+        });
+
+        // File Upload
+        const zone = this.els.dropZone;
+        
+        zone.addEventListener('click', () => {
+          this.els.fileInput.click();
+        });
+
+        zone.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.els.fileInput.click();
+          }
+        });
+
+        this.els.fileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) this.loadFile(file);
+        });
+
+        // Drag and Drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+          zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+          zone.addEventListener(eventName, () => {
+            zone.classList.add('drag-over');
+          }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+          zone.addEventListener(eventName, () => {
+            zone.classList.remove('drag-over');
+          }, false);
+        });
+
+        zone.addEventListener('drop', (e) => {
+          const file = e.dataTransfer.files[0];
+          if (file) this.loadFile(file);
+        });
+
+        // Transport Controls
+        this.els.playPauseBtn.addEventListener('click', () => {
+          if (!this.api || !this.api.score) {
+            this.toast.show('Please load a file first', 'warning');
+            return;
+          }
+          this.api.playPause();
+        });
+
+        this.els.stopBtn.addEventListener('click', () => {
+          if (!this.api || !this.api.score) return;
+          this.api.stop();
+        });
+
+        this.els.scrubber.addEventListener('input', (e) => {
+          if (!this.api || !this.api.score || this.api.score.masterBars.length === 0) return;
+          const totalTicks = this.api.score.masterBars.reduce((acc, mb) => acc + mb.duration, 0);
+          this.api.tickPosition = (e.target.value / 100) * totalTicks;
+        });
+
+        this.els.tempoSlider.addEventListener('input', (e) => {
+          if (!this.api) return;
+          this.api.playbackSpeed = e.target.value / 100;
+          this.els.tempoVal.textContent = `${e.target.value}%`;
+        });
+
+        this.els.metronomeBtn.addEventListener('click', () => {
+          if (!this.api) {
+            this.toast.show('Player not available', 'warning');
+            return;
+          }
+          const isActive = this.els.metronomeBtn.classList.toggle('active');
+          this.api.metronomeVolume = isActive ? 1 : 0;
+        });
+
+        this.els.loopBtn.addEventListener('click', () => {
+          if (!this.api) {
+            this.toast.show('Player not available', 'warning');
+            return;
+          }
+          const isActive = this.els.loopBtn.classList.toggle('active');
+          this.api.isLooping = isActive;
+        });
+
+        // Zoom Controls
+        this.els.zoomIn.addEventListener('click', () => {
+          this.changeZoom(10);
+        });
+
+        this.els.zoomOut.addEventListener('click', () => {
+          this.changeZoom(-10);
+        });
+
+        // TEX Editor
+        this.els.btnRenderTex.addEventListener('click', () => {
+          const tex = this.els.texInput.value.trim();
+          if (!tex) {
+            this.toast.show('Please enter some TEX notation', 'warning');
+            return;
+          }
+          
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+          
+          try {
+            this.api.tex(tex);
+            this.toast.show('TEX rendered successfully', 'success');
+          } catch (e) {
+            console.error('TEX rendering error:', e);
+            this.toast.show(`Invalid TEX notation: ${e.message || 'Unknown error'}`, 'error');
+          }
+        });
+
+        this.els.btnDemoDrums.addEventListener('click', () => {
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+          const drumTex = `\\title "Drum Pattern"
+\\tempo 120
+\\track "Drums"
+\\staff{score} \\tuning percussion
+.
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |`;
+          this.els.texInput.value = drumTex;
+          try {
+            this.api.tex(drumTex);
+            this.toast.show('Drum demo loaded', 'success');
+          } catch (e) {
+            console.error('Drum TEX error:', e);
+            this.toast.show('Error loading drum pattern', 'error');
+          }
+        });
+
+        this.els.btnClearTex.addEventListener('click', () => {
+          this.els.texInput.value = '';
+          this.toast.show('TEX input cleared', 'info');
+        });
+
+        // Analysis & Tools
+        this.els.btnPrint.addEventListener('click', () => {
+          if (!this.api) {
+            window.print(); // Use browser's default print
+            return;
+          }
+          this.api.print();
+        });
+
+        this.els.btnShowAnalysis.addEventListener('click', () => {
+          if (!this.api || !this.api.score) {
+            this.toast.show('Please load a file first', 'warning');
+            return;
+          }
+          this.els.dashboard.classList.remove('hidden');
+        });
+
+        this.els.btnCloseAnalysis.addEventListener('click', () => {
+          this.els.dashboard.classList.add('hidden');
+        });
+
+        // Close mobile menu on window resize
+        window.addEventListener('resize', () => {
+          if (window.innerWidth > 768) {
+            this.state.mobileMenuOpen = false;
+            this.els.sidebar.classList.remove('mobile-open');
+          }
+        });
+      }
+
+      setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+          // Skip if user is typing in input/textarea
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+          
+          // Play/Pause: Space
+          if (e.code === 'Space') {
+            e.preventDefault();
+            if (this.api && this.api.score) {
+              this.api.playPause();
+            }
+          }
+          
+          // Stop: Escape
+          if (e.key === 'Escape') {
+            if (this.api && this.api.score) {
+              this.api.stop();
+            }
+            // Also close modals
+            this.els.dashboard.classList.add('hidden');
+            this.els.settingsPanel.classList.remove('open');
+          }
+          
+          // Open file: Ctrl/Cmd + O
+          if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+            e.preventDefault();
+            this.els.fileInput.click();
+          }
+          
+          // Print: Ctrl/Cmd + P
+          if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            e.preventDefault();
+            if (this.api && this.api.score) {
+              this.api.print();
+            } else {
+              window.print();
+            }
+          }
+          
+          // Zoom: Ctrl/Cmd + Plus/Minus
+          if ((e.ctrlKey || e.metaKey)) {
+            if (e.key === '+' || e.key === '=') {
+              e.preventDefault();
+              this.changeZoom(10);
+            } else if (e.key === '-') {
+              e.preventDefault();
+              this.changeZoom(-10);
+            } else if (e.key === '0') {
+              e.preventDefault();
+              this.setZoom(100);
+            }
+          }
+          
+          // Toggle metronome: M
+          if (e.key === 'm' && !e.ctrlKey && !e.metaKey) {
+            this.els.metronomeBtn.click();
+          }
+          
+          // Toggle loop: L
+          if (e.key === 'l' && !e.ctrlKey && !e.metaKey) {
+            this.els.loopBtn.click();
+          }
+        });
+      }
+
+      applyTheme() {
+        if (this.state.theme === 'light') {
+          document.body.setAttribute('data-theme', 'light');
+          this.els.themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+        } else {
+          document.body.removeAttribute('data-theme');
+          this.els.themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+        }
+      }
+
+      changeZoom(delta) {
+        this.state.zoom = Math.max(50, Math.min(200, this.state.zoom + delta));
+        this.setZoom(this.state.zoom);
+      }
+
+      setZoom(zoom) {
+        this.state.zoom = zoom;
+        this.els.zoomVal.textContent = `${zoom}%`;
+        
+        if (this.api) {
+          this.api.settings.display.scale = zoom / 100;
+          this.api.updateSettings();
+          this.api.render();
+        }
+      }
+
+      loadFile(file) {
+        if (!file) return;
+        
+        const validTypes = ['.gp', '.gp3', '.gp4', '.gp5', '.gp6', '.gp7', '.gpx', '.xml', '.musicxml', '.mxl', '.tex'];
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        
+        if (!validTypes.includes(ext)) {
+          this.toast.show(`Invalid file type. Supported: ${validTypes.join(', ')}`, 'error');
+          return;
+        }
+        
+        if (!this.api) {
+          this.toast.show('Music notation system not available. Cannot load files.', 'error');
+          // Try to reinitialize
+          this.tryAlternativeMode();
+          return;
+        }
+        
+        this.toggleLoading(true);
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          try {
+            this.api.load(e.target.result);
+            this.toast.show(`File loaded: ${file.name}`, 'success');
+            
+            // Store recent file info
+            this.storage.set('recentFile', {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              lastModified: file.lastModified
+            });
+          } catch (error) {
+            this.toggleLoading(false);
+            this.toast.show('Failed to load file. Please check the format.', 'error');
+            console.error('Load error:', error);
+          }
+        };
+        
+        reader.onerror = () => {
+          this.toggleLoading(false);
+          this.toast.show('Error reading file', 'error');
+        };
+        
+        reader.readAsArrayBuffer(file);
+      }
+
+      onScoreLoaded(score) {
+        this.renderSidebar(score);
+        this.analyzer = new ScoreAnalyzer(score);
+        this.updateAnalysisDashboard();
+        this.toggleLoading(false);
+      }
+
+      renderSidebar(score) {
+        // Update metadata
+        this.els.metaContainer.innerHTML = `
+          <div style="padding: 0.75rem; background: var(--bg-surface); border-radius: var(--radius); border: 1px solid var(--border);">
+            <div style="margin-bottom: 0.5rem;">
+              <span style="color: var(--text-muted); font-size: 0.75rem;">Title:</span>
+              <strong style="display: block; margin-top: 2px;">${this.escapeHtml(score.title || 'Untitled')}</strong>
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+              <span style="color: var(--text-muted); font-size: 0.75rem;">Artist:</span>
+              <strong style="display: block; margin-top: 2px;">${this.escapeHtml(score.artist || 'Unknown')}</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); font-size: 0.75rem;">Tempo:</span>
+              <strong style="display: block; margin-top: 2px;">${score.tempo} BPM</strong>
+            </div>
+          </div>
+        `;
+
+        // Update track list
+        this.els.trackList.innerHTML = '';
+        document.getElementById('track-count').textContent = score.tracks.length;
+
+        score.tracks.forEach((track, index) => {
+          const el = document.createElement('div');
+          el.className = 'track-item';
+          el.setAttribute('role', 'listitem');
+          el.setAttribute('tabindex', '0');
+          
+          if (index === 0) el.classList.add('active');
+
+          const prog = track.playbackInfo?.program || 0;
+          const isPerc = (track.staves && track.staves[0] && track.staves[0].isPercussion) || (prog >= 112 && prog <= 128);
+          const icon = isPerc ? '<i class="fa-solid fa-drum"></i>' : '<i class="fa-solid fa-guitar"></i>';
+          
+          const trackDetails = track.staves[0]?.tuning?.length ? `${track.staves[0].tuning.length} strings` : '';
+
+          el.innerHTML = `
+            <div class="track-icon">${icon}</div>
+            <div class="track-info">
+              <div class="track-name">${this.escapeHtml(track.name)}</div>
+              ${trackDetails ? `<div class="track-details">${trackDetails}</div>` : ''}
+            </div>
+            <div class="track-controls">
+              <button class="track-btn mute" title="Mute track" aria-label="Mute ${this.escapeHtml(track.name)}">M</button>
+              <button class="track-btn solo" title="Solo track" aria-label="Solo ${this.escapeHtml(track.name)}">S</button>
+            </div>
+          `;
+
+          // Track selection
+          const selectTrack = () => {
+            document.querySelectorAll('.track-item').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            
+            if (this.api) {
+              this.api.settings.display.staveProfile = isPerc ? 'score' : this.state.settings.notation;
+              this.api.updateSettings();
+              this.api.renderTracks([track]);
+            }
+            
+            this.state.currentTrack = index;
+          };
+
+          el.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            selectTrack();
+          });
+
+          el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              selectTrack();
+            }
+          });
+
+          // Mute/Solo buttons
+          const btnMute = el.querySelector('.mute');
+          const btnSolo = el.querySelector('.solo');
+
+          btnMute.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!this.api) {
+              this.toast.show('Player not available', 'warning');
+              return;
+            }
+            const mute = !track.playbackInfo.isMute;
+            this.api.changeTrackMute([track], mute);
+            track.playbackInfo.isMute = mute;
+            btnMute.classList.toggle('active', mute);
+            
+            const action = mute ? 'muted' : 'unmuted';
+            this.toast.show(`Track ${action}: ${track.name}`, 'info');
+          });
+
+          btnSolo.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!this.api) {
+              this.toast.show('Player not available', 'warning');
+              return;
+            }
+            const solo = !track.playbackInfo.isSolo;
+            this.api.changeTrackSolo([track], solo);
+            track.playbackInfo.isSolo = solo;
+            btnSolo.classList.toggle('active', solo);
+            
+            const action = solo ? 'soloed' : 'unsoloed';
+            this.toast.show(`Track ${action}: ${track.name}`, 'info');
+          });
+
+          this.els.trackList.appendChild(el);
+        });
+      }
+
+      updateAnalysisDashboard() {
+        if (!this.analyzer) return;
+        
+        const meta = this.analyzer.getMeta();
+        document.getElementById('an-bars').textContent = meta.bars;
+        document.getElementById('an-tempo').textContent = meta.tempo;
+        document.getElementById('an-sig').textContent = meta.mainSig;
+        
+        document.getElementById('an-meta-list').innerHTML = `
+          <li><span>Title</span> <span>${this.escapeHtml(meta.title)}</span></li>
+          <li><span>Artist</span> <span>${this.escapeHtml(meta.artist)}</span></li>
+          <li><span>Tempo Events</span> <span>${meta.tempoEvents}</span></li>
+          <li><span>Time Sig Changes</span> <span>${meta.timeSigChanges}</span></li>
+        `;
+
+        const harm = this.analyzer.getHarmony();
+        document.getElementById('an-key-display').innerHTML = `
+          <span class="key-note">${harm.bestKey}</span>
+          <span class="key-scale">${harm.bestScale}</span>
+        `;
+        document.getElementById('an-harmony-details').textContent = `Based on ${harm.totalNotes} analyzed notes`;
+        
+        // Render pitch histogram
+        const histContainer = document.getElementById('pitch-histogram');
+        histContainer.innerHTML = '';
+        
+        if (harm.totalNotes === 0) {
+          histContainer.innerHTML = '<div style="width:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.8rem;">No pitch data available</div>';
+        } else {
+          const notes = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+          const maxPitch = Math.max(...harm.histogram, 1);
+          
+          harm.histogram.forEach((val, i) => {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            bar.style.height = `${(val / maxPitch) * 100}%`;
+            bar.innerHTML = `<span class="bar-label">${notes[i]}</span>`;
+            bar.title = `${notes[i]}: ${val}`;
+            histContainer.appendChild(bar);
+          });
+        }
+
+        // Render rhythm heatmap
+        const rhythm = this.analyzer.getRhythm();
+        const heatmap = document.getElementById('rhythm-heatmap');
+        heatmap.innerHTML = '';
+        
+        rhythm.density.forEach(d => {
+          const cell = document.createElement('div');
+          cell.className = 'heat-cell';
+          cell.style.opacity = Math.max(0.1, d / rhythm.maxDensity);
+          cell.title = `Notes: ${d}`;
+          heatmap.appendChild(cell);
+        });
+
+        // Complexity analysis
+        const tech = this.analyzer.getTechniqueAndComplexity(rhythm, harm);
+        document.getElementById('complexity-val').textContent = tech.totalScore;
+        
+        const circle = document.getElementById('complexity-circle');
+        if (tech.totalScore < 30) {
+          circle.style.borderColor = 'var(--success)';
+        } else if (tech.totalScore < 60) {
+          circle.style.borderColor = 'var(--warning)';
+        } else {
+          circle.style.borderColor = 'var(--danger)';
+        }
+
+        document.getElementById('an-tech-list').innerHTML = `
+          <li><span>Bends</span> <span>${tech.techniques.bends}</span></li>
+          <li><span>Slides</span> <span>${tech.techniques.slides}</span></li>
+          <li><span>Hammer/Pull</span> <span>${tech.techniques.hammers}</span></li>
+          <li><span>Dead Notes</span> <span>${tech.techniques.deadNotes}</span></li>
+          <li><span>Palm Mutes</span> <span>${tech.techniques.palmMutes}</span></li>
+        `;
+
+        // Instruments table
+        const insts = this.analyzer.getInstruments();
+        const instTable = document.getElementById('an-instrument-table');
+        
+        let tableHtml = `
+          <table>
+            <thead>
+              <tr>
+                <th>Track</th>
+                <th>Type</th>
+                <th>Tuning</th>
+                <th>Strings</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        insts.forEach(i => {
+          tableHtml += `
+            <tr>
+              <td>${this.escapeHtml(i.name)}</td>
+              <td>${i.type}</td>
+              <td>${i.tuning}</td>
+              <td>${i.strings}</td>
+            </tr>
+          `;
+        });
+        
+        tableHtml += `</tbody></table>`;
+        instTable.innerHTML = tableHtml;
+      }
+
+      handleExport() {
+        if (!this.api || !this.api.score) {
+          this.toast.show('Please load a file first', 'warning');
+          return;
+        }
+        
+        // Create export menu
+        const formats = ['PDF', 'MIDI', 'Audio (WAV)', 'Guitar Pro 5'];
+        const menu = document.createElement('div');
+        menu.style.cssText = `
+          position: absolute;
+          top: calc(var(--header-height) + 10px);
+          right: 10px;
+          background: var(--bg-panel);
+          border: 1px solid var(--border);
+          border-radius: var(--radius);
+          padding: 0.5rem;
+          box-shadow: var(--shadow-lg);
+          z-index: 100;
+        `;
+        
+        formats.forEach(format => {
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-small';
+          btn.style.cssText = 'width: 100%; margin-bottom: 0.25rem; justify-content: flex-start;';
+          btn.textContent = format;
+          btn.onclick = () => {
+            document.body.removeChild(menu);
+            this.toast.show(`Export to ${format} coming soon!`, 'info');
+            // Here you would implement actual export functionality
+          };
+          menu.appendChild(btn);
+        });
+        
+        document.body.appendChild(menu);
+        
+        // Close menu on outside click
+        setTimeout(() => {
+          document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+              if (menu.parentNode) {
+                document.body.removeChild(menu);
+              }
+              document.removeEventListener('click', closeMenu);
+            }
+          });
+        }, 0);
+      }
+
+      updateTransportUI() {
+        this.els.playPauseBtn.innerHTML = this.state.isPlaying 
+          ? '<i class="fa-solid fa-pause"></i>' 
+          : '<i class="fa-solid fa-play"></i>';
+      }
+
+      toggleLoading(show) {
+        if (show) {
+          this.els.loadingOverlay.classList.remove('hidden');
+          this.els.loadingOverlay.setAttribute('aria-hidden', 'false');
+        } else {
+          this.els.loadingOverlay.classList.add('hidden');
+          this.els.loadingOverlay.setAttribute('aria-hidden', 'true');
+        }
+      }
+
+      formatTime(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        const min = Math.floor(totalSec / 60);
+        const sec = totalSec % 60;
+        return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      }
+
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    }
+
+    // Initialize app when DOM is ready
+    function initializeApp() {
+      // Ensure DOM is completely ready
+      if (document.getElementById('at-container')) {
+        window.app = new ProTabApp();
+      } else {
+        console.error('Critical DOM elements not found, waiting...');
+        setTimeout(initializeApp, 100);
+      }
+    }
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      // DOM is already ready, but use timeout to ensure all resources are loaded
+      setTimeout(initializeApp, 0);
+    }
+  </script>
+</body>
+</html>
