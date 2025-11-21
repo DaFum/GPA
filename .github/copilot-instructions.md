@@ -197,8 +197,8 @@ The `.github/agents/` directory contains configuration for custom cleaning agent
 ## Quick Reference Commands
 
 ```bash
-# Validate HTML
-python3 -c "from html.parser import HTMLParser; HTMLParser().feed(open('index.html').read())"
+# Validate HTML (basic check)
+xmllint --html --noout index.html
 
 # Start local server
 python3 -m http.server 8080
