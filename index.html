@@ -2121,7 +2121,6 @@
         this.analyzer = null;
         this.score = null;
         this.customRenderer = null;
-        this.customRenderTarget = null;
         this.synth = null;
         this.storage = new StorageManager();
         this.toast = new ToastManager();
@@ -2397,11 +2396,6 @@
           console.error('Critical error in initAlphaTab:', error);
           this.showBasicInterface();
         }
-      }
-      
-      enhanceAlphaTabSettings() {
-        // This method is no longer needed as we initialize with full settings
-        console.log('AlphaTab already configured with full settings');
       }
       
       initAlphaTabFallback() {
@@ -3126,6 +3120,8 @@
        * @param {number} height Chunk height in pixels.
        * @returns {void}
        */
+      displayRenderChunk(renderResult, width, height) {
+        const chunk = document.createElement('div');
         chunk.className = 'render-chunk';
         if (Number.isFinite(width)) chunk.style.width = `${width}px`;
         if (Number.isFinite(height)) chunk.style.height = `${height}px`;
@@ -3133,16 +3129,6 @@
         const content = renderResult?.element || renderResult;
 
         if (content instanceof Element) {
-        chunk.className = 'render-chunk';
-        if (Number.isFinite(width)) chunk.style.width = `${width}px`;
-        if (Number.isFinite(height)) chunk.style.height = `${height}px`;
-
-        const content = renderResult?.element || renderResult;
-
-        if (content instanceof Element) {
-          chunk.appendChild(content);
-        } else if (typeof content === 'string') {
-          const trimmed = content.trim();
           chunk.appendChild(content);
         } else if (typeof content === 'string') {
           const trimmed = content.trim();
@@ -3429,20 +3415,23 @@
        * @returns {void}
        */
       downloadMidiFile(midiFile) {
+        const buffer = midiFile.toBinary();
+        const blob = new Blob([buffer], { type: 'audio/midi' });
         const url = URL.createObjectURL(blob);
-        try {
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `${this.score?.title || 'export'}.mid`;
-          document.body.appendChild(link);
-          link.click();
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${this.score?.title ?? 'export'}.mid`;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Use a timeout to ensure the download has initiated before cleanup.
+        setTimeout(() => {
           document.body.removeChild(link);
-        } finally {
           URL.revokeObjectURL(url);
-        }
-      }
+        }, 100);
       }
 
+      handleExport() {
         // Create export menu
         const formats = ['PDF', 'MIDI', 'Audio (WAV)', 'Guitar Pro 5'];
         const menu = document.createElement('div');
