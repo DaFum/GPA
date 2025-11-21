@@ -90,10 +90,6 @@ python -m http.server 8080
 ### Validation Steps
 
 1. **HTML Validation**:
-   ```bash
-   # Python HTML parser (built-in validation)
-   python3 -c "from html.parser import HTMLParser; p = HTMLParser(); p.feed(open('index.html').read()); print('Valid HTML')"
-   ```
 
 2. **JavaScript Syntax Check** (optional, Node.js required):
    ```bash
