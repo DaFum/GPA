@@ -3432,23 +3432,17 @@
         const bytes = midiFile.toBytes();
         const blob = new Blob([new Uint8Array(bytes)], { type: 'audio/midi' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            try {
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `${this.score?.title || 'export'}.mid`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            } finally {
-              URL.revokeObjectURL(url);
-            }
-          }
-        if (!this.api || !this.api.score) {
-          this.toast.show('Please load a file first', 'warning');
-          return;
+        try {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${this.score?.title || 'export'}.mid`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } finally {
+          URL.revokeObjectURL(url);
         }
+      }
 
         // Create export menu
         const formats = ['PDF', 'MIDI', 'Audio (WAV)', 'Guitar Pro 5'];
