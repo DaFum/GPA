@@ -175,7 +175,7 @@ Deploy to: GitHub Pages, Netlify, Vercel, or any static host (just upload `index
 - Line ~1435: Sidebar (file upload, TEX editor, track list)
 - Line ~1523: Score area (`#at-container` - AlphaTab renders here)
 - Line ~1530: Transport controls
-- Line ~1585: Analysis dashboard (overlay)
+- Line ~1669: Analysis dashboard (overlay)
 - Line ~1605: Settings panel (overlay)
 
 ## Important Notes
