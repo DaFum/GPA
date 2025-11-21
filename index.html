@@ -531,6 +531,26 @@
       position: relative;
     }
 
+    #custom-renderer-target {
+      margin-top: 1rem;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(15, 17, 21, 0.9));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem;
+      min-height: 240px;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .render-chunk {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+      overflow: hidden;
+    }
+
     /* ===== Transport Controls ===== */
     .transport-controls {
       display: flex;
@@ -1573,6 +1593,11 @@
 
       <!-- AlphaTab Container -->
       <div id="at-container" role="main" aria-label="Musical score display"></div>
+      <div
+        id="custom-renderer-target"
+        role="presentation"
+        aria-label="High fidelity score rendering"
+      ></div>
     </div>
   </main>
 
@@ -2094,6 +2119,10 @@
         this.noAlphaTabMode = noAlphaTab;
         this.api = null;
         this.analyzer = null;
+        this.score = null;
+        this.customRenderer = null;
+        this.customRenderTarget = null;
+        this.synth = null;
         this.storage = new StorageManager();
         this.toast = new ToastManager();
         
@@ -2162,9 +2191,12 @@
           // Analysis Dashboard
           dashboard: document.getElementById('analysis-dashboard'),
           btnCloseAnalysis: document.getElementById('btn-close-analysis'),
-          
+
           // Loading
-          loadingOverlay: document.getElementById('loading-overlay')
+          loadingOverlay: document.getElementById('loading-overlay'),
+
+          // Custom rendering
+          customRenderTarget: document.getElementById('custom-renderer-target')
         };
 
         this.init();
@@ -2230,6 +2262,59 @@
         this.storage.set('sidebarCollapsed', this.state.sidebarCollapsed);
       }
 
+      /**
+       * Persists the current score and settings for seamless session restores.
+       * @param {alphaTab.model.Score} [score] The score instance to persist.
+       * @returns {void}
+       */
+      saveSession(score) {
+        if (typeof alphaTab === 'undefined' || !alphaTab.model?.JsonConverter) return;
+
+        const activeScore = score || this.api?.score || this.score;
+        if (!activeScore) return;
+
+        try {
+          const scoreJson = alphaTab.model.JsonConverter.scoreToJson(activeScore);
+          const settingsJson = alphaTab.model.JsonConverter.settingsToJson(this.api?.settings || new alphaTab.Settings());
+
+          this.storage.set('session', {
+            score: scoreJson,
+            settings: settingsJson,
+            timestamp: Date.now()
+          });
+        } catch (error) {
+          console.error('Session save failed:', error);
+        }
+      }
+
+      /**
+       * Restores the last saved score session when available.
+       * @returns {void}
+       */
+      restoreSession() {
+        if (typeof alphaTab === 'undefined' || !alphaTab.model?.JsonConverter) return;
+
+        const session = this.storage.get('session');
+        if (!session) return;
+
+        try {
+          const restoredSettings = alphaTab.model.JsonConverter.jsonToSettings(session.settings);
+          const restoredScore = alphaTab.model.JsonConverter.jsonToScore(session.score, restoredSettings);
+
+          if (this.api) {
+            this.api.settings = restoredSettings;
+            this.api.updateSettings();
+            this.applyScore(restoredScore, { skipApiRender: false });
+          }
+
+          this.state.settings.notation = restoredSettings.display?.staveProfile || this.state.settings.notation;
+          this.applySettings();
+          this.toast.show('Session restored from last visit', 'success');
+        } catch (error) {
+          console.error('Session restore failed:', error);
+        }
+      }
+
       initAlphaTab() {
         try {
           // Check for AlphaTab availability
@@ -2293,10 +2378,13 @@
             };
             
             this.api = new alphaTab.AlphaTabApi(container, settings);
-            
+
             if (this.api) {
               console.log('AlphaTab initialized successfully');
               this.setupAlphaTabEvents();
+              this.initializeSynth();
+              this.setupCustomRenderer();
+              this.restoreSession();
             } else {
               throw new Error('API object not created');
             }
@@ -2324,7 +2412,7 @@
           this.showBasicInterface();
           return;
         }
-        
+
         // Fallback initialization with basic but functional settings
         const settings = {
           core: {
@@ -2344,10 +2432,13 @@
             soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
           }
         };
-        
+
         try {
           this.api = new alphaTab.AlphaTabApi(container, settings);
           this.setupAlphaTabEvents();
+          this.initializeSynth();
+          this.setupCustomRenderer();
+          this.restoreSession();
           this.toast.show('Running in fallback mode - tab notation only', 'warning');
         } catch (error) {
           console.error('Failed to initialize AlphaTab even in fallback mode:', error);
@@ -2355,6 +2446,35 @@
           // Show a basic file reader interface
           this.showBasicInterface();
         }
+      }
+
+      /**
+       * Creates the custom ScoreRenderer instance for advanced, chunked rendering.
+       * @returns {void}
+       */
+      setupCustomRenderer() {
+        if (this.customRenderer || !this.els.customRenderTarget) return;
+        if (typeof alphaTab === 'undefined' || !alphaTab.rendering?.ScoreRenderer) return;
+
+        const settings = new alphaTab.Settings();
+        settings.core.engine = 'svg';
+        settings.display.staveProfile = this.state.settings.notation;
+        settings.display.scale = this.state.zoom / 100;
+
+        this.customRenderer = new alphaTab.rendering.ScoreRenderer(settings);
+        this.customRenderer.width = this.els.customRenderTarget.clientWidth || 1200;
+
+        this.customRenderer.partialLayoutFinished.on((result) => {
+          this.customRenderer.renderResult(result.id);
+        });
+
+        this.customRenderer.partialRenderFinished.on((result) => {
+          this.displayRenderChunk(result.renderResult, result.width, result.height);
+        });
+
+        this.customRenderer.renderFinished.on((summary) => {
+          this.onCustomRenderComplete(summary.totalWidth, summary.totalHeight);
+        });
       }
       
       setupAlphaTabEvents() {
@@ -2370,7 +2490,7 @@
         });
 
         this.api.scoreLoaded.on((score) => {
-          this.onScoreLoaded(score);
+          this.applyScore(score, { skipApiRender: true });
         });
 
         this.api.playerReady.on(() => {
@@ -2394,7 +2514,7 @@
         this.api.error.on((error) => {
           console.error('AlphaTab Error:', error);
           this.toggleLoading(false);
-          
+
           // Handle specific error types
           if (error.type === 'font') {
             console.warn('Font loading issue detected, attempting fallback');
@@ -2404,7 +2524,36 @@
           }
         });
       }
-      
+
+      /**
+       * Initializes the AlphaSynth controller with dynamic output selection and soundfont loading.
+       * @returns {void}
+       */
+      initializeSynth() {
+        if (this.synth || typeof alphaTab === 'undefined' || !alphaTab.synth) return;
+
+        const supportsAudioWorklets = window.isSecureContext && 'AudioWorkletNode' in window;
+
+        try {
+          const output = supportsAudioWorklets
+            ? new alphaTab.synth.AlphaSynthAudioWorkletOutput()
+            : new alphaTab.synth.AlphaSynthWebAudioOutput();
+
+          const scriptUrl = 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/alphaTab.js';
+          this.synth = new alphaTab.synth.AlphaSynthWebWorkerApi(output, scriptUrl, alphaTab.LogLevel.Info);
+
+          fetch('https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2')
+            .then((response) => response.arrayBuffer())
+            .then((buffer) => {
+              const soundFont = new Uint8Array(buffer);
+              this.synth.loadSoundFont(soundFont);
+            })
+            .catch((error) => console.error('SoundFont load error:', error));
+        } catch (error) {
+          console.error('AlphaSynth initialization failed:', error);
+        }
+      }
+
       showBasicInterface() {
         // Show a basic interface when AlphaTab completely fails
         const container = document.getElementById('at-container');
@@ -2849,59 +2998,157 @@
         }
       }
 
+      /**
+       * Loads a supported file through AlphaTab's low-level ScoreLoader for fine-grained control.
+       * @param {File} file The file selected by the user.
+       * @returns {void}
+       */
       loadFile(file) {
         if (!file) return;
-        
+
         const validTypes = ['.gp', '.gp3', '.gp4', '.gp5', '.gp6', '.gp7', '.gpx', '.xml', '.musicxml', '.mxl', '.tex'];
         const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-        
+
         if (!validTypes.includes(ext)) {
           this.toast.show(`Invalid file type. Supported: ${validTypes.join(', ')}`, 'error');
           return;
         }
-        
+
         if (!this.api) {
           this.toast.show('Music notation system not available. Cannot load files.', 'error');
-          // Try to reinitialize
           this.tryAlternativeMode();
           return;
         }
-        
+
         this.toggleLoading(true);
         const reader = new FileReader();
-        
+
         reader.onload = (e) => {
           try {
-            this.api.load(e.target.result);
+            const data = new Uint8Array(e.target.result);
+            const settings = this.api?.settings || new alphaTab.Settings();
+            const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(data, settings);
+            this.applyScore(score, { fileMeta: file });
             this.toast.show(`File loaded: ${file.name}`, 'success');
-            
-            // Store recent file info
-            this.storage.set('recentFile', {
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              lastModified: file.lastModified
-            });
           } catch (error) {
             this.toggleLoading(false);
+            if (error instanceof alphaTab.importer.UnsupportedFormatError) {
+              this.toast.show('Unsupported file format', 'error');
+              return;
+            }
             this.toast.show('Failed to load file. Please check the format.', 'error');
             console.error('Load error:', error);
           }
         };
-        
+
         reader.onerror = () => {
           this.toggleLoading(false);
           this.toast.show('Error reading file', 'error');
         };
-        
+
         reader.readAsArrayBuffer(file);
       }
 
+      /**
+       * Applies a parsed score to renderers, analyzers, and persistence.
+       * @param {alphaTab.model.Score} score Parsed score instance.
+       * @param {{ skipApiRender?: boolean, fileMeta?: File }} options Optional rendering options.
+       * @returns {void}
+       */
+      applyScore(score, options = {}) {
+        if (!score) return;
+
+        const isSameScore = this.score === score && options.skipApiRender;
+        this.score = score;
+
+        if (isSameScore) {
+          this.toggleLoading(false);
+          return;
+        }
+
+        if (this.api && !options.skipApiRender) {
+          this.api.renderScore(score);
+        }
+
+        this.renderWithCustomRenderer(score);
+        this.onScoreLoaded(score);
+        this.saveSession(score);
+
+        if (options.fileMeta) {
+          this.storage.set('recentFile', {
+            name: options.fileMeta.name,
+            size: options.fileMeta.size,
+            type: options.fileMeta.type,
+            lastModified: options.fileMeta.lastModified
+          });
+        }
+
+        this.toggleLoading(false);
+      }
+
       onScoreLoaded(score) {
+        this.score = score;
         this.renderSidebar(score);
         this.analyzer = new ScoreAnalyzer(score);
         this.updateAnalysisDashboard();
         this.toggleLoading(false);
+      }
+
+      /**
+       * Uses the low-level ScoreRenderer to render the score into custom chunks for smoother updates.
+       * @param {alphaTab.model.Score} score Parsed score to render.
+       * @returns {void}
+       */
+      renderWithCustomRenderer(score) {
+        if (!this.customRenderer || !this.els.customRenderTarget) return;
+
+        this.els.customRenderTarget.innerHTML = '';
+
+        try {
+          this.customRenderer.width = this.els.customRenderTarget.clientWidth || 1200;
+          this.customRenderer.settings.display.staveProfile = this.state.settings.notation;
+          this.customRenderer.settings.display.scale = this.state.zoom / 100;
+          this.customRenderer.renderScore(score);
+        } catch (error) {
+          console.error('Custom renderer failed:', error);
+        }
+      }
+
+      /**
+       * Displays a partially rendered chunk inside the custom renderer target.
+       * @param {HTMLElement|SVGElement|{element: HTMLElement}} renderResult Rendered score fragment.
+       * @param {number} width Chunk width in pixels.
+       * @param {number} height Chunk height in pixels.
+       * @returns {void}
+       */
+      displayRenderChunk(renderResult, width, height) {
+        if (!this.els.customRenderTarget) return;
+
+        const chunk = document.createElement('div');
+        chunk.className = 'render-chunk';
+        chunk.style.width = `${width}px`;
+        chunk.style.height = `${height}px`;
+
+        const content = renderResult?.element || renderResult;
+        if (content instanceof Element) {
+          chunk.appendChild(content);
+        } else if (typeof content === 'string') {
+          chunk.innerHTML = content;
+        }
+
+        this.els.customRenderTarget.appendChild(chunk);
+      }
+
+      /**
+       * Updates render meta data when custom rendering completes.
+       * @param {number} totalWidth Combined render width.
+       * @param {number} totalHeight Combined render height.
+       * @returns {void}
+       */
+      onCustomRenderComplete(totalWidth, totalHeight) {
+        if (this.els.customRenderTarget) {
+          this.els.customRenderTarget.setAttribute('data-render-size', `${Math.round(totalWidth)}x${Math.round(totalHeight)}`);
+        }
       }
 
       renderSidebar(score) {
@@ -3125,12 +3372,63 @@
         instTable.innerHTML = tableHtml;
       }
 
+      /**
+       * Generates a MIDI file from the current score and triggers download.
+       * @returns {void}
+       */
+      exportToMidi() {
+        if (!this.score || typeof alphaTab === 'undefined') {
+          this.toast.show('No score available for MIDI export', 'warning');
+          return;
+        }
+
+        try {
+          const midiFile = new alphaTab.midi.MidiFile();
+          const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midiFile, true);
+          const generator = new alphaTab.midi.MidiFileGenerator(
+            this.score,
+            this.api?.settings || new alphaTab.Settings(),
+            handler
+          );
+          generator.generate();
+
+          this.downloadMidiFile(midiFile);
+          this.toast.show('MIDI export ready', 'success');
+        } catch (error) {
+          console.error('MIDI export error:', error);
+          this.toast.show('Unable to export MIDI file', 'error');
+        }
+      }
+
+      /**
+       * Downloads a generated MIDI file to the user's device.
+       * @param {alphaTab.midi.MidiFile} midiFile The generated MIDI payload.
+       * @returns {void}
+       */
+      downloadMidiFile(midiFile) {
+        if (!midiFile?.toBytes) {
+          console.warn('MidiFile serialization unavailable');
+          return;
+        }
+
+        const bytes = midiFile.toBytes();
+        const blob = new Blob([new Uint8Array(bytes)], { type: 'audio/midi' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${this.score?.title || 'export'}.mid`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
       handleExport() {
         if (!this.api || !this.api.score) {
           this.toast.show('Please load a file first', 'warning');
           return;
         }
-        
+
         // Create export menu
         const formats = ['PDF', 'MIDI', 'Audio (WAV)', 'Guitar Pro 5'];
         const menu = document.createElement('div');
@@ -3153,8 +3451,12 @@
           btn.textContent = format;
           btn.onclick = () => {
             document.body.removeChild(menu);
+            if (format === 'MIDI') {
+              this.exportToMidi();
+              return;
+            }
+
             this.toast.show(`Export to ${format} coming soon!`, 'info');
-            // Here you would implement actual export functionality
           };
           menu.appendChild(btn);
         });
