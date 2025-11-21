@@ -35,7 +35,7 @@
 
 ### Key UI Components
 
-- **Sidebar** (`.sidebar`): File upload, TEX editor, track list, analysis controls
+- **Sidebar** (`.sidebar`): File upload, TeX editor, track list, analysis controls
 - **Score Display** (`#at-container`): AlphaTab rendering container
 - **Transport Controls** (`.transport-controls`): Playback, tempo, volume controls
 - **Analysis Dashboard** (`.analysis-dashboard`): Music theory analysis overlay
