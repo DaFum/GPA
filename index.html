@@ -3137,6 +3137,13 @@
         const content = renderResult?.element || renderResult;
 
         if (content instanceof Element) {
+        chunk.className = 'render-chunk';
+        if (Number.isFinite(width)) chunk.style.width = `${width}px`;
+        if (Number.isFinite(height)) chunk.style.height = `${height}px`;
+
+        const content = renderResult?.element || renderResult;
+
+        if (content instanceof Element) {
           chunk.appendChild(content);
         } else if (typeof content === 'string') {
           const trimmed = content.trim();
@@ -3153,7 +3160,6 @@
           }
         } else {
           console.warn('Unsupported renderResult content skipped');
-        }
         }
 
         this.els.customRenderTarget.appendChild(chunk);
