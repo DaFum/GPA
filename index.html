@@ -3087,11 +3087,9 @@
       }
 
       onScoreLoaded(score) {
-        this.score = score;
         this.renderSidebar(score);
         this.analyzer = new ScoreAnalyzer(score);
         this.updateAnalysisDashboard();
-        this.toggleLoading(false);
       }
 
       /**
