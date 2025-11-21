@@ -3429,13 +3429,6 @@
        * @returns {void}
        */
       downloadMidiFile(midiFile) {
-        if (!midiFile?.toBytes) {
-          console.warn('MidiFile serialization unavailable');
-          return;
-        }
-
-        const bytes = midiFile.toBytes();
-        const blob = new Blob([new Uint8Array(bytes)], { type: 'audio/midi' });
         const url = URL.createObjectURL(blob);
         try {
           const link = document.createElement('a');
@@ -3447,6 +3440,7 @@
         } finally {
           URL.revokeObjectURL(url);
         }
+      }
       }
 
         // Create export menu
