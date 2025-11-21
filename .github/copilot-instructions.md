@@ -2,7 +2,7 @@
 
 ## Repository Overview
 
-**GPA (ProTab Studio | Professional Edition)** is a single-file static web application for viewing and analyzing guitar tablature and musical scores. The entire application is contained in `index.html` (3,226 lines) with no build system, backend, or bundler required.
+**GPA (ProTab Studio | Professional Edition)** is a single-file static web application for viewing and analyzing guitar tablature and musical scores. The entire application is contained in `index.html` (3,227 lines) with no build system, backend, or bundler required.
 
 - **Type:** Single-page web application (SPA)
 - **Technology:** Pure HTML5, CSS3, JavaScript (ES6+)
