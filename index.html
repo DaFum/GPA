@@ -1774,8 +1774,8 @@
       let currentFallback = 0;
       
       /**
-       * Tries to load the next URL in the fallback list.
-       * Recursive function that advances through the fallbackUrls array.
+       * Iterates through the fallback URLs, attempting to load each one in sequence.
+       * On failure, proceeds to the next URL via the error handler.
        *
        * @returns {void}
        */
@@ -2023,7 +2023,7 @@
 
       /**
        * Extracts metadata from the score.
-       * @returns {Object} An object containing title, artist, album, bar count, tempo, time signature, etc.
+       * @returns {{title: string, artist: string, album: string, bars: number, tempo: number, mainSig: string, tempoEvents: number, timeSigChanges: number}} An object containing title, artist, album, bar count, tempo, time signature, etc.
        */
       getMeta() {
         const s = this.score;
@@ -2057,7 +2057,7 @@
       /**
        * Analyzes the harmonic content of the score.
        * Calculates pitch distribution and estimates the key and scale.
-       * @returns {Object} An object containing pitch histogram, total notes, estimated key, and scale.
+       * @returns {{histogram: number[], totalNotes: number, bestKey: string, bestScale: string}} An object containing pitch histogram, total notes, estimated key, and scale.
        */
       getHarmony() {
         const pitchCounts = new Array(12).fill(0);
@@ -2092,8 +2092,8 @@
 
       /**
        * Detects the most likely musical key based on pitch distribution.
-       * @param {number[]} pitchCounts - Array of 12 integers representing the count of each pitch class (C to B).
-       * @returns {Object} An object containing the root note and scale type (Major/Minor).
+       * @param {number[]} pitchCounts - Array of 12 integers representing the count of each chromatic pitch class (C, C#, D, D#, E, F, F#, G, G#, A, A#, B in semitone order).
+       * @returns {{root: string, scale: string}} An object containing the root note and scale type (Major/Minor).
        */
       detectKey(pitchCounts) {
         const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -2136,7 +2136,7 @@
 
       /**
        * Analyzes the rhythmic density of the score.
-       * @returns {Object} An object containing an array of note counts per bar and the maximum density found.
+       * @returns {{density: number[], maxDensity: number}} An object containing an array of note counts per bar and the maximum density found.
        */
       getRhythm() {
         const barDensity = [];
@@ -2166,7 +2166,7 @@
        * Calculates a complexity score and gathers technique statistics.
        * @param {Object} rhythm - The rhythm analysis result.
        * @param {Object} harmony - The harmony analysis result.
-       * @returns {Object} An object containing technique counts and a total complexity score (0-100).
+       * @returns {{techniques: {bends: number, slides: number, hammers: number, deadNotes: number, palmMutes: number}, totalScore: number}} An object containing technique counts and a total complexity score (0-100).
        */
       getTechniqueAndComplexity(rhythm, harmony) {
         const techniques = {
