@@ -1752,12 +1752,19 @@
 
   <!-- AlphaTab Library with Fallback Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/alphaTab.min.js" 
-          onerror="console.error('Primary AlphaTab CDN failed, trying fallback...'); loadAlphaTabFallback();">
+          onerror="console.error('Primary AlphaTab CDN failed, trying fallback...'); loadAlphaTabScriptFallback();">
   </script>
   
   <script>
     // Fallback loading mechanism for AlphaTab
-    function loadAlphaTabFallback() {
+    /**
+     * Attempts to load the AlphaTab library from a list of fallback CDN URLs.
+     * Iterates through the list until a successful load occurs or all options are exhausted.
+     * If all CDNs fail, initializes the app in a no-AlphaTab mode.
+     *
+     * @returns {void}
+     */
+    function loadAlphaTabScriptFallback() {
       const fallbackUrls = [
         'https://unpkg.com/@coderline/alphatab@1.3.0/dist/alphaTab.min.js',
         'https://cdn.skypack.dev/@coderline/alphatab@1.3.0',
@@ -1766,6 +1773,12 @@
       
       let currentFallback = 0;
       
+      /**
+       * Tries to load the next URL in the fallback list.
+       * Recursive function that advances through the fallbackUrls array.
+       *
+       * @returns {void}
+       */
       function tryNextFallback() {
         if (currentFallback >= fallbackUrls.length) {
           console.error('All AlphaTab CDN sources failed');
@@ -1806,7 +1819,7 @@
       setTimeout(() => {
         if (typeof alphaTab === 'undefined' && !window.app) {
           console.error('AlphaTab not loaded after page load, attempting fallback');
-          loadAlphaTabFallback();
+          loadAlphaTabScriptFallback();
         }
       }, 1000);
     });
@@ -1817,11 +1830,24 @@
     // Using standard DOM methods instead of custom shortcuts to avoid confusion
     
     // Local Storage Helper
+    /**
+     * Helper class for managing local storage operations with a namespace prefix.
+     */
     class StorageManager {
+      /**
+       * Initializes the StorageManager.
+       * @param {string} prefix - The prefix to prepend to all storage keys. Defaults to 'protab_'.
+       */
       constructor(prefix = 'protab_') {
         this.prefix = prefix;
       }
       
+      /**
+       * Retrieves a value from local storage.
+       * @param {string} key - The key of the item to retrieve (without prefix).
+       * @param {*} defaultValue - The value to return if the key does not exist or error occurs.
+       * @returns {*} The parsed value from storage or the default value.
+       */
       get(key, defaultValue = null) {
         try {
           const value = localStorage.getItem(this.prefix + key);
@@ -1832,6 +1858,12 @@
         }
       }
       
+      /**
+       * Saves a value to local storage.
+       * @param {string} key - The key to store the value under (without prefix).
+       * @param {*} value - The value to store (will be JSON stringified).
+       * @returns {boolean} True if successful, false otherwise.
+       */
       set(key, value) {
         try {
           localStorage.setItem(this.prefix + key, JSON.stringify(value));
@@ -1842,6 +1874,11 @@
         }
       }
       
+      /**
+       * Removes a specific item from local storage.
+       * @param {string} key - The key of the item to remove (without prefix).
+       * @returns {boolean} True if successful, false otherwise.
+       */
       remove(key) {
         try {
           localStorage.removeItem(this.prefix + key);
@@ -1852,6 +1889,10 @@
         }
       }
       
+      /**
+       * Clears all items from local storage that start with the configured prefix.
+       * @returns {boolean} True if successful, false otherwise.
+       */
       clear() {
         try {
           Object.keys(localStorage)
@@ -1866,12 +1907,27 @@
     }
 
     // Toast Notification System
+    /**
+     * Manages toast notifications for the application.
+     */
     class ToastManager {
+      /**
+       * Initializes the ToastManager.
+       * @param {string} containerId - The ID of the DOM element to contain toast messages. Defaults to 'toast-container'.
+       */
       constructor(containerId = 'toast-container') {
         this.container = document.getElementById(containerId);
         this.toasts = [];
       }
       
+      /**
+       * Displays a toast notification.
+       * @param {string} message - The message content of the toast.
+       * @param {string} type - The type of toast ('info', 'success', 'warning', 'error'). Defaults to 'info'.
+       * @param {string} title - Optional title for the toast.
+       * @param {number} duration - Duration in milliseconds before auto-dismissing. Defaults to 4000.
+       * @returns {HTMLElement} The created toast element.
+       */
       show(message, type = 'info', title = '', duration = 4000) {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
@@ -1912,6 +1968,11 @@
         return toast;
       }
       
+      /**
+       * Removes a specific toast notification.
+       * @param {HTMLElement} toast - The toast element to remove.
+       * @returns {void}
+       */
       remove(toast) {
         if (!toast || !this.toasts.includes(toast)) return;
         
@@ -1927,10 +1988,19 @@
         }, 250);
       }
       
+      /**
+       * Removes all active toast notifications.
+       * @returns {void}
+       */
       clearAll() {
         this.toasts.forEach(toast => this.remove(toast));
       }
       
+      /**
+       * Escapes HTML characters in a string to prevent XSS.
+       * @param {string} text - The text to escape.
+       * @returns {string} The escaped text safe for HTML insertion.
+       */
       escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -1939,11 +2009,22 @@
     }
 
     // ===== Score Analyzer Class =====
+    /**
+     * Analyzes musical scores to provide statistical and theoretical insights.
+     */
     class ScoreAnalyzer {
+      /**
+       * Initializes the ScoreAnalyzer with a score object.
+       * @param {alphaTab.model.Score} score - The score object to analyze.
+       */
       constructor(score) {
         this.score = score;
       }
 
+      /**
+       * Extracts metadata from the score.
+       * @returns {Object} An object containing title, artist, album, bar count, tempo, time signature, etc.
+       */
       getMeta() {
         const s = this.score;
         return {
@@ -1958,6 +2039,10 @@
         };
       }
 
+      /**
+       * Calculates the number of time signature changes in the score.
+       * @returns {number} The count of time signature changes.
+       */
       getTimeSigChanges() {
         let changes = 0;
         let lastSig = null;
@@ -1969,6 +2054,11 @@
         return changes;
       }
 
+      /**
+       * Analyzes the harmonic content of the score.
+       * Calculates pitch distribution and estimates the key and scale.
+       * @returns {Object} An object containing pitch histogram, total notes, estimated key, and scale.
+       */
       getHarmony() {
         const pitchCounts = new Array(12).fill(0);
         let totalNotes = 0;
@@ -2000,6 +2090,11 @@
         };
       }
 
+      /**
+       * Detects the most likely musical key based on pitch distribution.
+       * @param {number[]} pitchCounts - Array of 12 integers representing the count of each pitch class (C to B).
+       * @returns {Object} An object containing the root note and scale type (Major/Minor).
+       */
       detectKey(pitchCounts) {
         const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
         const majorPattern = [2,2,1,2,2,2,1];
@@ -2039,6 +2134,10 @@
         return bestKey;
       }
 
+      /**
+       * Analyzes the rhythmic density of the score.
+       * @returns {Object} An object containing an array of note counts per bar and the maximum density found.
+       */
       getRhythm() {
         const barDensity = [];
         let maxDensity = 0;
@@ -2063,6 +2162,12 @@
         return { density: barDensity, maxDensity };
       }
 
+      /**
+       * Calculates a complexity score and gathers technique statistics.
+       * @param {Object} rhythm - The rhythm analysis result.
+       * @param {Object} harmony - The harmony analysis result.
+       * @returns {Object} An object containing technique counts and a total complexity score (0-100).
+       */
       getTechniqueAndComplexity(rhythm, harmony) {
         const techniques = {
           bends: 0,
@@ -2103,6 +2208,10 @@
         return { techniques, totalScore: complexityScore };
       }
 
+      /**
+       * Retrieves information about the instruments (tracks) in the score.
+       * @returns {Array<Object>} An array of objects describing each track (name, type, tuning, string count).
+       */
       getInstruments() {
         return this.score.tracks.map(track => ({
           name: track.name,
@@ -2114,7 +2223,15 @@
     }
 
     // ===== Main Application Class =====
+    /**
+     * The main application controller for ProTab Studio.
+     * Manages UI state, score rendering, audio playback, and user interactions.
+     */
     class ProTabApp {
+      /**
+       * Initializes the ProTabApp.
+       * @param {boolean} noAlphaTab - If true, initializes in a fallback mode without the AlphaTab library. Defaults to false.
+       */
       constructor(noAlphaTab = false) {
         this.noAlphaTabMode = noAlphaTab;
         this.api = null;
@@ -2201,6 +2318,11 @@
         this.init();
       }
 
+      /**
+       * Initializes the application.
+       * Loads settings, checks for AlphaTab availability, and sets up events.
+       * @returns {void}
+       */
       init() {
         this.loadSettings();
         
@@ -2223,6 +2345,10 @@
         }
       }
 
+      /**
+       * Loads user settings and theme preferences from local storage.
+       * @returns {void}
+       */
       loadSettings() {
         const saved = this.storage.get('settings');
         if (saved) {
@@ -2238,6 +2364,11 @@
         this.applySettings();
       }
 
+      /**
+       * Applies the current settings to the UI and AlphaTab instance.
+       * Updates notation display, auto-scroll, count-in, and other preferences.
+       * @returns {void}
+       */
       applySettings() {
         // Apply notation setting
         this.els.settingNotation.value = this.state.settings.notation;
@@ -2255,6 +2386,10 @@
         }
       }
 
+      /**
+       * Saves current settings and UI state to local storage.
+       * @returns {void}
+       */
       saveSettings() {
         this.storage.set('settings', this.state.settings);
         this.storage.set('theme', this.state.theme);
@@ -2314,6 +2449,11 @@
         }
       }
 
+      /**
+       * Initializes the AlphaTab API with the main configuration.
+       * Sets up the engine, display options, and player.
+       * @returns {void}
+       */
       initAlphaTab() {
         try {
           // Check for AlphaTab availability
@@ -2398,6 +2538,11 @@
         }
       }
       
+      /**
+       * Initializes AlphaTab with a fallback configuration if the primary initialization fails.
+       * Uses a simpler setup (e.g., tab only, no workers) to attempt to get a working state.
+       * @returns {void}
+       */
       initAlphaTabFallback() {
         // Ensure container exists
         const container = document.getElementById('at-container');
@@ -2471,6 +2616,11 @@
         });
       }
       
+      /**
+       * Binds event listeners to the AlphaTab API.
+       * Handles render events, player state changes, and errors.
+       * @returns {void}
+       */
       setupAlphaTabEvents() {
         if (!this.api) return;
         
@@ -2550,6 +2700,11 @@
         }
       }
 
+      /**
+       * Displays a basic fallback interface when AlphaTab cannot be loaded.
+       * Allows the user to reload or try alternative modes.
+       * @returns {void}
+       */
       showBasicInterface() {
         // Show a basic interface when AlphaTab completely fails
         const container = document.getElementById('at-container');
@@ -2585,6 +2740,10 @@
         `;
       }
       
+      /**
+       * Attempts to initialize AlphaTab in an alternative mode (e.g. SVG engine) when standard modes fail.
+       * @returns {void}
+       */
       tryAlternativeMode() {
         // Attempt to use a CDN-free version or local resources
         this.toggleLoading(true);
@@ -2641,61 +2800,41 @@
         }, 1000);
       }
 
+      /**
+       * Binds all DOM event listeners for the application UI.
+       * Handles clicks, changes, inputs, and drag-and-drop events.
+       * @returns {void}
+       */
+      /**
+       * Binds all DOM event listeners for the application UI.
+       * Delegates to specific binding methods for cleaner organization.
+       * @returns {void}
+       */
       bindEvents() {
+        this.bindHeaderEvents();
+        this.bindSidebarEvents();
+        this.bindTransportEvents();
+        this.bindSettingsEvents();
+        this.bindAnalysisEvents();
+
+        // Window resize listener to handle responsive state
+        window.addEventListener('resize', () => {
+          if (window.innerWidth > 768) {
+            this.state.mobileMenuOpen = false;
+            this.els.sidebar.classList.remove('mobile-open');
+          }
+        });
+      }
+
+      /**
+       * Binds events related to the header (theme, settings, fullscreen, export).
+       */
+      bindHeaderEvents() {
         // Theme Toggle
         this.els.themeBtn.addEventListener('click', () => {
           this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
           this.applyTheme();
           this.saveSettings();
-        });
-
-        // Settings Panel
-        this.els.settingsBtn.addEventListener('click', () => {
-          this.els.settingsPanel.classList.add('open');
-        });
-
-        this.els.closeSettings.addEventListener('click', () => {
-          this.els.settingsPanel.classList.remove('open');
-        });
-
-        // Setting Changes
-        this.els.settingNotation.addEventListener('change', (e) => {
-          this.state.settings.notation = e.target.value;
-          if (this.api) {
-            this.api.settings.display.staveProfile = e.target.value;
-            this.api.updateSettings();
-            this.api.render();
-          }
-          this.saveSettings();
-        });
-
-        this.els.settingAutoScroll.addEventListener('change', (e) => {
-          this.state.settings.autoScroll = e.target.checked;
-          if (this.api) {
-            this.api.settings.player.scrollMode = e.target.checked ? 'continuous' : 'off';
-            this.api.updateSettings();
-          }
-          this.saveSettings();
-        });
-
-        this.els.settingCountIn.addEventListener('change', (e) => {
-          this.state.settings.countIn = e.target.checked;
-          if (this.api) {
-            this.api.countInVolume = e.target.checked ? 1 : 0;
-          }
-          this.saveSettings();
-        });
-
-        this.els.resetSettings.addEventListener('click', () => {
-          this.state.settings = {
-            notation: 'scoretab',
-            autoScroll: true,
-            countIn: false,
-            soundQuality: 'medium'
-          };
-          this.applySettings();
-          this.saveSettings();
-          this.toast.show('Settings reset to defaults', 'success');
         });
 
         // Fullscreen
@@ -2719,7 +2858,12 @@
           this.state.mobileMenuOpen = !this.state.mobileMenuOpen;
           this.els.sidebar.classList.toggle('mobile-open', this.state.mobileMenuOpen);
         });
+      }
 
+      /**
+       * Binds events related to the sidebar (toggle, file upload, TEX editor).
+       */
+      bindSidebarEvents() {
         // Sidebar Toggle
         this.els.sidebarToggle.addEventListener('click', () => {
           this.state.sidebarCollapsed = !this.state.sidebarCollapsed;
@@ -2771,7 +2915,61 @@
           if (file) this.loadFile(file);
         });
 
-        // Transport Controls
+        // TEX Editor
+        this.els.btnRenderTex.addEventListener('click', () => {
+          const tex = this.els.texInput.value.trim();
+          if (!tex) {
+            this.toast.show('Please enter some TEX notation', 'warning');
+            return;
+          }
+
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+
+          try {
+            this.api.tex(tex);
+            this.toast.show('TEX rendered successfully', 'success');
+          } catch (e) {
+            console.error('TEX rendering error:', e);
+            this.toast.show(`Invalid TEX notation: ${e.message || 'Unknown error'}`, 'error');
+          }
+        });
+
+        this.els.btnDemoDrums.addEventListener('click', () => {
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+          const drumTex = `\\title "Drum Pattern"
+\\tempo 120
+\\track "Drums"
+\\staff{score} \\tuning percussion
+.
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |`;
+          this.els.texInput.value = drumTex;
+          try {
+            this.api.tex(drumTex);
+            this.toast.show('Drum demo loaded', 'success');
+          } catch (e) {
+            console.error('Drum TEX error:', e);
+            this.toast.show('Error loading drum pattern', 'error');
+          }
+        });
+
+        this.els.btnClearTex.addEventListener('click', () => {
+          this.els.texInput.value = '';
+          this.toast.show('TEX input cleared', 'info');
+        });
+      }
+
+      /**
+       * Binds events related to playback and transport (play, stop, tempo, zoom).
+       */
+      bindTransportEvents() {
+        // Play/Pause
         this.els.playPauseBtn.addEventListener('click', () => {
           if (!this.api || !this.api.score) {
             this.toast.show('Please load a file first', 'warning');
@@ -2823,57 +3021,55 @@
         this.els.zoomOut.addEventListener('click', () => {
           this.changeZoom(-10);
         });
+      }
 
-        // TEX Editor
-        this.els.btnRenderTex.addEventListener('click', () => {
-          const tex = this.els.texInput.value.trim();
-          if (!tex) {
-            this.toast.show('Please enter some TEX notation', 'warning');
-            return;
-          }
-          
-          if (!this.api) {
-            this.toast.show('Music notation system not available', 'error');
-            return;
-          }
-          
-          try {
-            this.api.tex(tex);
-            this.toast.show('TEX rendered successfully', 'success');
-          } catch (e) {
-            console.error('TEX rendering error:', e);
-            this.toast.show(`Invalid TEX notation: ${e.message || 'Unknown error'}`, 'error');
-          }
+      /**
+       * Binds events related to the settings panel.
+       */
+      bindSettingsEvents() {
+        // Settings Panel Toggle
+        this.els.settingsBtn.addEventListener('click', () => {
+          this.els.settingsPanel.classList.add('open');
         });
 
-        this.els.btnDemoDrums.addEventListener('click', () => {
-          if (!this.api) {
-            this.toast.show('Music notation system not available', 'error');
-            return;
-          }
-          const drumTex = `\\title "Drum Pattern"
-\\tempo 120
-\\track "Drums"
-\\staff{score} \\tuning percussion
-.
-36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |
-36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |`;
-          this.els.texInput.value = drumTex;
-          try {
-            this.api.tex(drumTex);
-            this.toast.show('Drum demo loaded', 'success');
-          } catch (e) {
-            console.error('Drum TEX error:', e);
-            this.toast.show('Error loading drum pattern', 'error');
-          }
+        this.els.closeSettings.addEventListener('click', () => {
+          this.els.settingsPanel.classList.remove('open');
         });
 
-        this.els.btnClearTex.addEventListener('click', () => {
-          this.els.texInput.value = '';
-          this.toast.show('TEX input cleared', 'info');
+        // Setting Changes - delegates to updateSetting
+        this.els.settingNotation.addEventListener('change', (e) => {
+          this.updateSetting('notation', e.target.value);
         });
 
-        // Analysis & Tools
+        this.els.settingAutoScroll.addEventListener('change', (e) => {
+          this.updateSetting('autoScroll', e.target.checked);
+        });
+
+        this.els.settingCountIn.addEventListener('change', (e) => {
+          this.updateSetting('countIn', e.target.checked);
+        });
+
+        this.els.settingSoundFont.addEventListener('change', (e) => {
+          this.updateSetting('soundQuality', e.target.value);
+        });
+
+        this.els.resetSettings.addEventListener('click', () => {
+          this.state.settings = {
+            notation: 'scoretab',
+            autoScroll: true,
+            countIn: false,
+            soundQuality: 'medium'
+          };
+          this.applySettings();
+          this.saveSettings();
+          this.toast.show('Settings reset to defaults', 'success');
+        });
+      }
+
+      /**
+       * Binds events related to analysis tools.
+       */
+      bindAnalysisEvents() {
         this.els.btnPrint.addEventListener('click', () => {
           if (!this.api) {
             window.print(); // Use browser's default print
@@ -2893,16 +3089,37 @@
         this.els.btnCloseAnalysis.addEventListener('click', () => {
           this.els.dashboard.classList.add('hidden');
         });
-
-        // Close mobile menu on window resize
-        window.addEventListener('resize', () => {
-          if (window.innerWidth > 768) {
-            this.state.mobileMenuOpen = false;
-            this.els.sidebar.classList.remove('mobile-open');
-          }
-        });
       }
 
+      /**
+       * Updates a specific setting and triggers necessary side effects.
+       * @param {string} key - The setting key.
+       * @param {*} value - The new value.
+       */
+      updateSetting(key, value) {
+        this.state.settings[key] = value;
+
+        // Handle side effects
+        if (this.api) {
+          if (key === 'notation') {
+            this.api.settings.display.staveProfile = value;
+            this.api.updateSettings();
+            this.api.render();
+          } else if (key === 'autoScroll') {
+            this.api.settings.player.scrollMode = value ? 'continuous' : 'off';
+            this.api.updateSettings();
+          } else if (key === 'countIn') {
+            this.api.countInVolume = value ? 1 : 0;
+          }
+        }
+
+        this.saveSettings();
+      }
+
+      /**
+       * Sets up global keyboard shortcuts for playback control, zooming, and file operations.
+       * @returns {void}
+       */
       setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
           // Skip if user is typing in input/textarea
@@ -2968,6 +3185,11 @@
         });
       }
 
+      /**
+       * Applies the current theme (light/dark) to the document body.
+       * Updates the theme toggle button icon.
+       * @returns {void}
+       */
       applyTheme() {
         if (this.state.theme === 'light') {
           document.body.setAttribute('data-theme', 'light');
@@ -2978,11 +3200,23 @@
         }
       }
 
+      /**
+       * Adjusts the zoom level by a delta amount.
+       * Clamps the zoom level between 50% and 200%.
+       * @param {number} delta - The amount to change the zoom by (positive or negative).
+       * @returns {void}
+       */
       changeZoom(delta) {
         this.state.zoom = Math.max(50, Math.min(200, this.state.zoom + delta));
         this.setZoom(this.state.zoom);
       }
 
+      /**
+       * Sets the zoom level to a specific percentage.
+       * Updates the UI and triggers a re-render of the score.
+       * @param {number} zoom - The new zoom percentage (e.g., 100).
+       * @returns {void}
+       */
       setZoom(zoom) {
         this.state.zoom = zoom;
         this.els.zoomVal.textContent = `${zoom}%`;
@@ -3087,6 +3321,12 @@
         this.toggleLoading(false);
       }
 
+      /**
+       * Callback handler when a score is successfully loaded.
+       * Updates the sidebar, initializes the analyzer, and refreshes the dashboard.
+       * @param {alphaTab.model.Score} score - The loaded score object.
+       * @returns {void}
+       */
       onScoreLoaded(score) {
         this.renderSidebar(score);
         this.analyzer = new ScoreAnalyzer(score);
@@ -3160,6 +3400,12 @@
         }
       }
 
+      /**
+       * Renders the sidebar content based on the loaded score.
+       * Populates metadata and the track list.
+       * @param {alphaTab.model.Score} score - The score object containing metadata and tracks.
+       * @returns {void}
+       */
       renderSidebar(score) {
         // Update metadata
         this.els.metaContainer.innerHTML = `
@@ -3273,6 +3519,11 @@
         });
       }
 
+      /**
+       * Updates the analysis dashboard with data from the ScoreAnalyzer.
+       * Populates charts, statistics, and instrument tables.
+       * @returns {void}
+       */
       updateAnalysisDashboard() {
         if (!this.analyzer) return;
         
@@ -3431,6 +3682,11 @@
         }, 100);
       }
 
+      /**
+       * Handles the export button click.
+       * Shows a menu with export options and triggers the selected export action.
+       * @returns {void}
+       */
       handleExport() {
         // Create export menu
         const formats = ['PDF', 'MIDI', 'Audio (WAV)', 'Guitar Pro 5'];
@@ -3479,12 +3735,21 @@
         }, 0);
       }
 
+      /**
+       * Updates the transport controls UI (Play/Pause button) based on playback state.
+       * @returns {void}
+       */
       updateTransportUI() {
         this.els.playPauseBtn.innerHTML = this.state.isPlaying 
           ? '<i class="fa-solid fa-pause"></i>' 
           : '<i class="fa-solid fa-play"></i>';
       }
 
+      /**
+       * Toggles the visibility of the loading overlay.
+       * @param {boolean} show - If true, shows the overlay; otherwise hides it.
+       * @returns {void}
+       */
       toggleLoading(show) {
         if (show) {
           this.els.loadingOverlay.classList.remove('hidden');
@@ -3495,6 +3760,11 @@
         }
       }
 
+      /**
+       * Formats a time in milliseconds to MM:SS string.
+       * @param {number} ms - Time in milliseconds.
+       * @returns {string} The formatted time string.
+       */
       formatTime(ms) {
         const totalSec = Math.floor(ms / 1000);
         const min = Math.floor(totalSec / 60);
@@ -3502,6 +3772,11 @@
         return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
       }
 
+      /**
+       * Escapes HTML characters in a string to prevent XSS.
+       * @param {string} text - The text to escape.
+       * @returns {string} The escaped text safe for HTML insertion.
+       */
       escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -3510,6 +3785,11 @@
     }
 
     // Initialize app when DOM is ready
+    /**
+     * Bootstraps the application when the DOM is ready.
+     * Ensures all critical elements are present before initializing the main app controller.
+     * @returns {void}
+     */
     function initializeApp() {
       // Ensure DOM is completely ready
       if (document.getElementById('at-container')) {
