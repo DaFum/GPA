@@ -2802,11 +2802,7 @@
 
       /**
        * Binds all DOM event listeners for the application UI.
-       * Handles clicks, changes, inputs, and drag-and-drop events.
-       * @returns {void}
-       */
-      /**
-       * Binds all DOM event listeners for the application UI.
+
        * Delegates to specific binding methods for cleaner organization.
        * @returns {void}
        */
@@ -2828,6 +2824,7 @@
 
       /**
        * Binds events related to the header (theme, settings, fullscreen, export).
+       * @returns {void}
        */
       bindHeaderEvents() {
         // Theme Toggle
@@ -2862,6 +2859,7 @@
 
       /**
        * Binds events related to the sidebar (toggle, file upload, TEX editor).
+       * @returns {void}
        */
       bindSidebarEvents() {
         // Sidebar Toggle
@@ -2967,7 +2965,8 @@
 
       /**
        * Binds events related to playback and transport (play, stop, tempo, zoom).
-       */
+       * @returns {void}
+      */
       bindTransportEvents() {
         // Play/Pause
         this.els.playPauseBtn.addEventListener('click', () => {
@@ -3025,6 +3024,7 @@
 
       /**
        * Binds events related to the settings panel.
+       * @returns {void}
        */
       bindSettingsEvents() {
         // Settings Panel Toggle
@@ -3068,6 +3068,7 @@
 
       /**
        * Binds events related to analysis tools.
+       * @returns {void}
        */
       bindAnalysisEvents() {
         this.els.btnPrint.addEventListener('click', () => {
@@ -3095,6 +3096,7 @@
        * Updates a specific setting and triggers necessary side effects.
        * @param {string} key - The setting key.
        * @param {*} value - The new value.
+       * @returns {void}
        */
       updateSetting(key, value) {
         this.state.settings[key] = value;
