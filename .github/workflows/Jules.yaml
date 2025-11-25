@@ -1,0 +1,102 @@
+name: Jules Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  jules_review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch the head branch of the pull request
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Get base branch for comparison
+        run: |
+          echo "BASE_BRANCH=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+
+      - name: Start Jules Review Session
+        env:
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO_NAME: ${{ github.event.repository.name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          # Construct the source name for Jules
+          # This assumes your Jules source is configured as 'sources/github/OWNER/REPO_NAME'
+          JULES_SOURCE="sources/github/${{ env.GITHUB_REPO_OWNER }}/${{ env.GITHUB_REPO_NAME }}"
+
+          # Define the prompt for Jules
+          # You can customize this prompt to guide Jules on what to review
+          JULES_PROMPT="Please review the changes in this pull request '${{ env.PR_TITLE }}' (${{ env.PR_URL }}) for potential bugs, code quality, and adherence to best practices. Focus on the differences between the '${{ env.BASE_BRANCH }}' branch and the current branch."
+
+          echo "Starting Jules session for review..."
+          echo "Source: $JULES_SOURCE"
+          echo "Prompt: $JULES_PROMPT"
+
+          # Make the API call to create a new session
+          # The 'automationMode' is set to 'AUTO_CREATE_PR' if you want Jules to automatically create a PR with its suggestions.
+          # If you want to manually approve, you might omit this or set 'requirePlanApproval: true'.
+          RESPONSE=$(curl -s -X POST \
+            'https://jules.googleapis.com/v1alpha/sessions' \
+            -H "Content-Type: application/json" \
+            -H "X-Goog-Api-Key: ${JULES_API_KEY}" \
+            -d "{
+                  \"prompt\": \"${JULES_PROMPT}\",
+                  \"sourceContext\": {
+                    \"source\": \"${JULES_SOURCE}\",
+                    \"githubRepoContext\": {
+                      \"startingBranch\": \"${{ env.BASE_BRANCH }}\",
+                      \"headBranch\": \"${{ github.event.pull_request.head.ref }}\"
+                    }
+                  },
+                  \"title\": \"Jules Review for PR: ${{ env.PR_TITLE }}\",
+                  \"automationMode\": \"AUTO_CREATE_PR\"
+                }")
+
+          echo "Jules API Response: $RESPONSE"
+
+          # Extract session name from the response
+          SESSION_NAME=$(echo "$RESPONSE" | jq -r '.name')
+
+          if [ "$SESSION_NAME" == "null" ] || [ -z "$SESSION_NAME" ]; then
+            echo "Error: Failed to create Jules session. Response: $RESPONSE"
+            exit 1
+          fi
+
+          echo "Jules session created: $SESSION_NAME"
+          echo "JULES_SESSION_NAME=$SESSION_NAME" >> $GITHUB_ENV
+
+      - name: Monitor Jules Session (Optional)
+        # This step is optional and demonstrates how you might poll the session status.
+        # For a real-world scenario, you might want a more robust polling mechanism or
+        # rely on Jules to create a PR if automationMode is set.
+        if: success()
+        env:
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          JULES_SESSION_NAME: ${{ env.JULES_SESSION_NAME }}
+        run: |
+          echo "Monitoring Jules session: ${{ env.JULES_SESSION_NAME }}"
+          # In a real scenario, you would poll the session until it's complete or a PR is created.
+          # For simplicity, this example just fetches the session details once.
+          # You might add a loop here with 'sleep' commands.
+          SESSION_DETAILS=$(curl -s \
+            "https://jules.googleapis.com/v1alpha/${{ env.JULES_SESSION_NAME }}" \
+            -H "X-Goog-Api-Key: ${JULES_API_KEY}")
+
+          echo "Current Jules Session Details:"
+          echo "$SESSION_DETAILS" | jq .
+
+          # Example: Check if a Pull Request was created by Jules
+          PR_URL=$(echo "$SESSION_DETAILS" | jq -r '.outputs[]?.pullRequest?.url')
+          if [ "$PR_URL" != "null" ] && [ -n "$PR_URL" ]; then
+            echo "Jules created a Pull Request: $PR_URL"
+            # You could add a comment to the original PR here with the link to Jules's PR
+          else
+            echo "Jules has not yet created a Pull Request or the session is still in progress."
+          fi
