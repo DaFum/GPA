@@ -51,8 +51,7 @@ jobs:
                   \"sourceContext\": {
                     \"source\": \"${JULES_SOURCE}\",
                     \"githubRepoContext\": {
-                      \"startingBranch\": \"${{ env.BASE_BRANCH }}\",
-                      \"headBranch\": \"${{ github.event.pull_request.head.ref }}\"
+                      \"startingBranch\": \"${{ env.BASE_BRANCH }}\"
                     }
                   },
                   \"title\": \"Jules Review for PR: ${{ env.PR_TITLE }}\",
