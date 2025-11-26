@@ -2460,7 +2460,7 @@
 
         this.customRenderer = new alphaTab.rendering.ScoreRenderer(settings);
         const width = this.els.customRenderTarget.clientWidth;
-        this.customRenderer.width = Math.max(width || ProTabApp.DEFAULT_RENDERER_WIDTH, 800);
+        this.customRenderer.width = width > 0 ? Math.max(width, 800) : ProTabApp.DEFAULT_RENDERER_WIDTH;
 
         this.customRenderer.partialLayoutFinished.on((result) => {
           try {
@@ -2560,7 +2560,12 @@
           fetch('https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2', {
             signal: controller.signal
           })
-            .then((response) => response.arrayBuffer())
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.arrayBuffer();
+            })
             .then((buffer) => {
               clearTimeout(timeoutId);
               if (this.synth) {
@@ -3135,7 +3140,7 @@
 
         try {
           const width = this.els.customRenderTarget.clientWidth;
-          this.customRenderer.width = Math.max(width || ProTabApp.DEFAULT_RENDERER_WIDTH, 800);
+          this.customRenderer.width = width > 0 ? Math.max(width, 800) : ProTabApp.DEFAULT_RENDERER_WIDTH;
           this.customRenderer.settings.display.staveProfile = this.state.settings.notation;
           this.customRenderer.settings.display.scale = this.state.zoom / 100;
           this.customRenderer.renderScore(score);
