@@ -531,6 +531,20 @@
       position: relative;
     }
 
+    #custom-renderer-target {
+      flex: 1;
+      overflow: auto;
+      background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-app) 100%);
+      padding: 2rem;
+    }
+
+    .render-chunk {
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      background: white;
+      border: 1px solid var(--border-light);
+    }
+
     /* ===== Transport Controls ===== */
     .transport-controls {
       display: flex;
@@ -1573,6 +1587,14 @@
 
       <!-- AlphaTab Container -->
       <div id="at-container" role="main" aria-label="Musical score display"></div>
+
+      <!--
+        Custom Renderer Target
+        This separate container is used for a high-fidelity, chunked SVG rendering process.
+        It allows for more control over the rendering output, enabling features like
+        partial rendering and potentially higher quality exports.
+      -->
+      <div id="custom-renderer-target" role="presentation" aria-label="High-fidelity score rendering"></div>
     </div>
   </main>
 
@@ -1726,7 +1748,7 @@
   <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <!-- AlphaTab Library with Fallback Loading -->
-  <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/alphaTab.min.js" 
+  <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.1/dist/alphaTab.min.js"
           onerror="console.error('Primary AlphaTab CDN failed, trying fallback...'); loadAlphaTabFallback();">
   </script>
   
@@ -1734,9 +1756,9 @@
     // Fallback loading mechanism for AlphaTab
     function loadAlphaTabFallback() {
       const fallbackUrls = [
-        'https://unpkg.com/@coderline/alphatab@1.3.0/dist/alphaTab.min.js',
-        'https://cdn.skypack.dev/@coderline/alphatab@1.3.0',
-        'https://ga.jspm.io/npm:@coderline/alphatab@1.3.0/dist/alphaTab.min.js'
+        'https://unpkg.com/@coderline/alphatab@1.3.1/dist/alphaTab.min.js',
+        'https://cdn.skypack.dev/@coderline/alphatab@1.3.1',
+        'https://ga.jspm.io/npm:@coderline/alphatab@1.3.1/dist/alphaTab.min.js'
       ];
       
       let currentFallback = 0;
@@ -2096,6 +2118,10 @@
         this.analyzer = null;
         this.storage = new StorageManager();
         this.toast = new ToastManager();
+        this.score = null;
+        this.customRenderer = null;
+        this.customRenderTarget = null;
+        this.synth = null;
         
         this.state = {
           isPlaying: false,
@@ -2286,17 +2312,17 @@
                 enablePlayer: true,
                 enableCursor: true,
                 enableUserInteraction: true,
-                soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2',
+                soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.1/dist/soundfont/sonivox.sf2',
                 scrollMode: 'continuous',
                 scrollSpeed: 300
               }
             };
             
-            this.api = new alphaTab.AlphaTabApi(container, settings);
+            this.api = new alphaTab.AlphaTabApi(document.querySelector("#at-container"), settings);
             
             if (this.api) {
               console.log('AlphaTab initialized successfully');
-              this.setupAlphaTabEvents();
+              this._setupAlphaTabPostInit();
             } else {
               throw new Error('API object not created');
             }
@@ -2309,6 +2335,63 @@
           console.error('Critical error in initAlphaTab:', error);
           this.showBasicInterface();
         }
+      }
+
+      _setupAlphaTabPostInit() {
+        this.setupAlphaTabEvents();
+        this.initializeSynth();
+        this.setupCustomRenderer();
+        this.restoreSession();
+      }
+
+      initializeSynth() {
+        if (this.synth || typeof alphaTab === 'undefined' || !alphaTab.synth) return;
+
+        const supportsAudioWorklets = window.isSecureContext && 'AudioWorkletNode' in window;
+
+        try {
+          const output = supportsAudioWorklets
+            ? new alphaTab.synth.AlphaSynthAudioWorkletOutput()
+            : new alphaTab.synth.AlphaSynthWebAudioOutput();
+
+          const scriptUrl = 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.1/dist/alphaTab.js';
+          this.synth = new alphaTab.synth.AlphaSynthWebWorkerApi(output, scriptUrl, alphaTab.LogLevel.Info);
+
+          fetch('https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.1/dist/soundfont/sonivox.sf2')
+            .then((response) => response.arrayBuffer())
+            .then((buffer) => {
+              const soundFont = new Uint8Array(buffer);
+              this.synth.loadSoundFont(soundFont);
+            })
+            .catch((error) => console.error('SoundFont load error:', error));
+        } catch (error) {
+          console.error('AlphaSynth initialization failed:', error);
+        }
+      }
+
+      setupCustomRenderer() {
+        if (this.customRenderer || !this.els.customRenderTarget) return;
+        if (typeof alphaTab === 'undefined' || !alphaTab.rendering?.ScoreRenderer) return;
+
+        const settings = new alphaTab.Settings();
+        settings.core.engine = 'svg';
+        settings.display.staveProfile = this.state.settings.notation;
+        settings.display.scale = this.state.zoom / 100;
+
+        this.customRenderer = new alphaTab.rendering.ScoreRenderer(settings);
+        this.customRenderer.width = this.els.customRenderTarget.clientWidth || 1200;
+
+        this.customRenderer.partialLayoutFinished.on((result) => {
+          this.customRenderer.renderResult(result.id);
+        });
+
+        this.customRenderer.partialRenderFinished.on((result) => {
+          this.displayRenderChunk(result.renderResult, result.width, result.height);
+        });
+
+        this.customRenderer.renderFinished.on((summary) => {
+          this.onCustomRenderComplete(summary.totalWidth, summary.totalHeight);
+        });
       }
       
       enhanceAlphaTabSettings() {
@@ -2341,12 +2424,12 @@
             enablePlayer: true,
             enableCursor: true,
             enableUserInteraction: true,
-            soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
+            soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.1/dist/soundfont/sonivox.sf2'
           }
         };
         
         try {
-          this.api = new alphaTab.AlphaTabApi(container, settings);
+          this.api = new alphaTab.AlphaTabApi(document.querySelector("#at-container"), settings);
           this.setupAlphaTabEvents();
           this.toast.show('Running in fallback mode - tab notation only', 'warning');
         } catch (error) {
@@ -2403,6 +2486,117 @@
             this.toast.show(`Error: ${error.message || 'Unknown error occurred'}`, 'error');
           }
         });
+      }
+
+      saveSession(score) {
+        if (typeof alphaTab === 'undefined' || !alphaTab.model?.JsonConverter) return;
+
+        const activeScore = score || this.api?.score || this.score;
+        if (!activeScore) return;
+
+        try {
+          const scoreJson = alphaTab.model.JsonConverter.scoreToJson(activeScore);
+          const settingsJson = alphaTab.model.JsonConverter.settingsToJson(this.api?.settings || new alphaTab.Settings());
+
+          this.storage.set('session', {
+            score: scoreJson,
+            settings: settingsJson,
+            timestamp: Date.now()
+          });
+        } catch (error) {
+          console.error('Session save failed:', error);
+        }
+      }
+
+      restoreSession() {
+        if (typeof alphaTab === 'undefined' || !alphaTab.model?.JsonConverter) return;
+
+        const session = this.storage.get('session');
+        if (!session) return;
+
+        try {
+          const restoredSettings = alphaTab.model.JsonConverter.jsonToSettings(session.settings);
+          const restoredScore = alphaTab.model.JsonConverter.jsonToScore(session.score, restoredSettings);
+
+          if (this.api) {
+            this.api.settings = restoredSettings;
+            this.api.updateSettings();
+            this.applyScore(restoredScore, { skipApiRender: false });
+          }
+
+          this.state.settings.notation = restoredSettings.display?.staveProfile || this.state.settings.notation;
+          this.applySettings();
+          this.toast.show('Session restored from last visit', 'success');
+        } catch (error) {
+          console.error('Session restore failed:', error);
+          this.storage.remove('session'); // Clear corrupted session
+        }
+      }
+
+      onCustomRenderComplete(totalWidth, totalHeight) {
+        if (this.els.customRenderTarget) {
+          this.els.customRenderTarget.setAttribute('data-render-size', `${Math.round(totalWidth)}x${Math.round(totalHeight)}`);
+        }
+      }
+
+      displayRenderChunk(renderResult, width, height) {
+        if (!this.els.customRenderTarget) return;
+
+        const chunk = document.createElement('div');
+        chunk.className = 'render-chunk';
+        chunk.style.width = `${width}px`;
+        chunk.style.height = `${height}px`;
+
+        const content = renderResult?.element || renderResult;
+        if (content instanceof Element) {
+          chunk.appendChild(content);
+        } else if (typeof content === 'string' && content.trim().startsWith('<svg')) {
+          const doc = new DOMParser().parseFromString(content, 'image/svg+xml');
+          const svgElement = doc.documentElement;
+          if (svgElement && svgElement.nodeName !== 'parsererror') {
+            chunk.appendChild(svgElement);
+          }
+        }
+
+        this.els.customRenderTarget.appendChild(chunk);
+      }
+
+      renderWithCustomRenderer(score) {
+        if (!this.customRenderer || !this.els.customRenderTarget) return;
+
+        this.els.customRenderTarget.innerHTML = '';
+
+        try {
+          this.customRenderer.width = this.els.customRenderTarget.clientWidth || 1200;
+          this.customRenderer.settings.display.staveProfile = this.state.settings.notation;
+          this.customRenderer.settings.display.scale = this.state.zoom / 100;
+          this.customRenderer.renderScore(score);
+        } catch (error) {
+          console.error('Custom renderer failed:', error);
+        }
+      }
+
+      downloadMidiFile(midiFile) {
+        if (!midiFile) {
+          this.toast.show('MIDI file is not available.', 'error');
+          return;
+        }
+
+        const fileName = `${this.score?.title || 'export'}.mid`;
+        if (!confirm(`Do you want to download "${fileName}"?`)) {
+          return;
+        }
+
+        const bytes = midiFile.toBytes();
+        const blob = new Blob([new Uint8Array(bytes)], { type: 'audio/midi' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       }
       
       showBasicInterface() {
@@ -2478,13 +2672,13 @@
             player: { 
               enablePlayer: true,
               enableCursor: true,
-              soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
+              soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.1/dist/soundfont/sonivox.sf2'
             }
           };
           
           try {
-            this.api = new alphaTab.AlphaTabApi(containerEl, alternativeSettings);
-            this.setupAlphaTabEvents();
+            this.api = new alphaTab.AlphaTabApi(document.querySelector("#at-container"), alternativeSettings);
+            this._setupAlphaTabPostInit();
             this.toggleLoading(false);
             this.toast.show('Alternative mode activated - using SVG rendering', 'warning');
           } catch (e) {
@@ -2758,6 +2952,30 @@
         });
       }
 
+      exportToMidi() {
+        if (!this.score || typeof alphaTab === 'undefined') {
+          this.toast.show('No score available for MIDI export', 'warning');
+          return;
+        }
+
+        try {
+          const midiFile = new alphaTab.midi.MidiFile();
+          const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midiFile, true);
+          const generator = new alphaTab.midi.MidiFileGenerator(
+            this.score,
+            this.api?.settings || new alphaTab.Settings(),
+            handler
+          );
+          generator.generate();
+
+          this.downloadMidiFile(midiFile);
+          this.toast.show('MIDI export ready', 'success');
+        } catch (error) {
+          console.error('MIDI export error:', error);
+          this.toast.show('Unable to export MIDI file', 'error');
+        }
+      }
+
       setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
           // Skip if user is typing in input/textarea
@@ -2862,7 +3080,6 @@
         
         if (!this.api) {
           this.toast.show('Music notation system not available. Cannot load files.', 'error');
-          // Try to reinitialize
           this.tryAlternativeMode();
           return;
         }
@@ -2871,22 +3088,26 @@
         const reader = new FileReader();
         
         reader.onload = (e) => {
-          try {
-            this.api.load(e.target.result);
-            this.toast.show(`File loaded: ${file.name}`, 'success');
-            
-            // Store recent file info
-            this.storage.set('recentFile', {
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              lastModified: file.lastModified
-            });
-          } catch (error) {
-            this.toggleLoading(false);
-            this.toast.show('Failed to load file. Please check the format.', 'error');
-            console.error('Load error:', error);
-          }
+            try {
+                const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(e.target.result);
+                this.applyScore(score, {
+                    fileMeta: {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        lastModified: file.lastModified
+                    }
+                });
+                this.toast.show(`File loaded: ${file.name}`, 'success');
+            } catch (error) {
+                this.toggleLoading(false);
+                if (error instanceof alphaTab.importer.UnsupportedFormatError) {
+                    this.toast.show('Unsupported file format.', 'error');
+                } else {
+                    this.toast.show('Failed to load file. Please check the format.', 'error');
+                }
+                console.error('Load error:', error);
+            }
         };
         
         reader.onerror = () => {
@@ -2897,8 +3118,36 @@
         reader.readAsArrayBuffer(file);
       }
 
+      applyScore(score, options = {}) {
+        if (!score) return;
+
+        // Debounce rendering if the same score is passed again
+        if (this.score && this.score === score) {
+            this.toggleLoading(false);
+            return;
+        }
+
+        this.score = score;
+
+        if (this.api && !options.skipApiRender) {
+            this.api.renderScore(score);
+        }
+
+        if (options.fileMeta) {
+            this.storage.set('recentFile', {
+                name: options.fileMeta.name,
+                size: options.fileMeta.size,
+                type: options.fileMeta.type,
+                lastModified: options.fileMeta.lastModified
+            });
+        }
+
+        this.toggleLoading(false);
+      }
+
       onScoreLoaded(score) {
         this.renderSidebar(score);
+        this.renderWithCustomRenderer(score);
         this.analyzer = new ScoreAnalyzer(score);
         this.updateAnalysisDashboard();
         this.toggleLoading(false);
@@ -3153,8 +3402,11 @@
           btn.textContent = format;
           btn.onclick = () => {
             document.body.removeChild(menu);
-            this.toast.show(`Export to ${format} coming soon!`, 'info');
-            // Here you would implement actual export functionality
+            if (format === 'MIDI') {
+              this.exportToMidi();
+            } else {
+              this.toast.show(`Export to ${format} coming soon!`, 'info');
+            }
           };
           menu.appendChild(btn);
         });
