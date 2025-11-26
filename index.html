@@ -1752,7 +1752,7 @@
 
   <!-- AlphaTab Library with Fallback Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/alphaTab.min.js" 
-          onerror="console.error('Primary AlphaTab CDN failed, trying fallback...'); loadAlphaTabFallback();">
+          onerror="console.error('Primary AlphaTab CDN failed, trying fallback...'); loadAlphaTabScriptFallback();">
   </script>
   
   <script>
@@ -1819,7 +1819,7 @@
       setTimeout(() => {
         if (typeof alphaTab === 'undefined' && !window.app) {
           console.error('AlphaTab not loaded after page load, attempting fallback');
-          loadAlphaTabFallback();
+          loadAlphaTabScriptFallback();
         }
       }, 1000);
     });
@@ -2833,33 +2833,35 @@
           this.saveSettings();
         });
 
-        this.els.settingAutoScroll.addEventListener('change', (e) => {
-          this.state.settings.autoScroll = e.target.checked;
-          if (this.api) {
-            this.api.settings.player.scrollMode = e.target.checked ? 'continuous' : 'off';
-            this.api.updateSettings();
-          }
-          this.saveSettings();
-        });
+       * Delegates to specific binding methods for cleaner organization.
+       * @returns {void}
+       */
+      bindEvents() {
+        this.bindHeaderEvents();
+        this.bindSidebarEvents();
+        this.bindTransportEvents();
+        this.bindSettingsEvents();
+        this.bindAnalysisEvents();
 
-        this.els.settingCountIn.addEventListener('change', (e) => {
-          this.state.settings.countIn = e.target.checked;
-          if (this.api) {
-            this.api.countInVolume = e.target.checked ? 1 : 0;
+        // Window resize listener to handle responsive state
+        window.addEventListener('resize', () => {
+          if (window.innerWidth > 768) {
+            this.state.mobileMenuOpen = false;
+            this.els.sidebar.classList.remove('mobile-open');
           }
-          this.saveSettings();
         });
+      }
 
-        this.els.resetSettings.addEventListener('click', () => {
-          this.state.settings = {
-            notation: 'scoretab',
-            autoScroll: true,
-            countIn: false,
-            soundQuality: 'medium'
-          };
-          this.applySettings();
+      /**
+       * Binds events related to the header (theme, settings, fullscreen, export).
+       * @returns {void}
+       */
+      bindHeaderEvents() {
+        // Theme Toggle
+        this.els.themeBtn.addEventListener('click', () => {
+          this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+          this.applyTheme();
           this.saveSettings();
-          this.toast.show('Settings reset to defaults', 'success');
         });
 
         // Fullscreen
@@ -2883,7 +2885,13 @@
           this.state.mobileMenuOpen = !this.state.mobileMenuOpen;
           this.els.sidebar.classList.toggle('mobile-open', this.state.mobileMenuOpen);
         });
+      }
 
+      /**
+       * Binds events related to the sidebar (toggle, file upload, TEX editor).
+       * @returns {void}
+       */
+      bindSidebarEvents() {
         // Sidebar Toggle
         this.els.sidebarToggle.addEventListener('click', () => {
           this.state.sidebarCollapsed = !this.state.sidebarCollapsed;
@@ -2935,7 +2943,62 @@
           if (file) this.loadFile(file);
         });
 
-        // Transport Controls
+        // TEX Editor
+        this.els.btnRenderTex.addEventListener('click', () => {
+          const tex = this.els.texInput.value.trim();
+          if (!tex) {
+            this.toast.show('Please enter some TEX notation', 'warning');
+            return;
+          }
+
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+
+          try {
+            this.api.tex(tex);
+            this.toast.show('TEX rendered successfully', 'success');
+          } catch (e) {
+            console.error('TEX rendering error:', e);
+            this.toast.show(`Invalid TEX notation: ${e.message || 'Unknown error'}`, 'error');
+          }
+        });
+
+        this.els.btnDemoDrums.addEventListener('click', () => {
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+          const drumTex = `\\title "Drum Pattern"
+\\tempo 120
+\\track "Drums"
+\\staff{score} \\tuning percussion
+.
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |`;
+          this.els.texInput.value = drumTex;
+          try {
+            this.api.tex(drumTex);
+            this.toast.show('Drum demo loaded', 'success');
+          } catch (e) {
+            console.error('Drum TEX error:', e);
+            this.toast.show('Error loading drum pattern', 'error');
+          }
+        });
+
+        this.els.btnClearTex.addEventListener('click', () => {
+          this.els.texInput.value = '';
+          this.toast.show('TEX input cleared', 'info');
+        });
+      }
+
+      /**
+       * Binds events related to playback and transport (play, stop, tempo, zoom).
+       * @returns {void}
+      */
+      bindTransportEvents() {
+        // Play/Pause
         this.els.playPauseBtn.addEventListener('click', () => {
           if (!this.api || !this.api.score) {
             this.toast.show('Please load a file first', 'warning');
@@ -2987,57 +3050,57 @@
         this.els.zoomOut.addEventListener('click', () => {
           this.changeZoom(-10);
         });
+      }
 
-        // TEX Editor
-        this.els.btnRenderTex.addEventListener('click', () => {
-          const tex = this.els.texInput.value.trim();
-          if (!tex) {
-            this.toast.show('Please enter some TEX notation', 'warning');
-            return;
-          }
-          
-          if (!this.api) {
-            this.toast.show('Music notation system not available', 'error');
-            return;
-          }
-          
-          try {
-            this.api.tex(tex);
-            this.toast.show('TEX rendered successfully', 'success');
-          } catch (e) {
-            console.error('TEX rendering error:', e);
-            this.toast.show(`Invalid TEX notation: ${e.message || 'Unknown error'}`, 'error');
-          }
+      /**
+       * Binds events related to the settings panel.
+       * @returns {void}
+       */
+      bindSettingsEvents() {
+        // Settings Panel Toggle
+        this.els.settingsBtn.addEventListener('click', () => {
+          this.els.settingsPanel.classList.add('open');
         });
 
-        this.els.btnDemoDrums.addEventListener('click', () => {
-          if (!this.api) {
-            this.toast.show('Music notation system not available', 'error');
-            return;
-          }
-          const drumTex = `\\title "Drum Pattern"
-\\tempo 120
-\\track "Drums"
-\\staff{score} \\tuning percussion
-.
-36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |
-36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |`;
-          this.els.texInput.value = drumTex;
-          try {
-            this.api.tex(drumTex);
-            this.toast.show('Drum demo loaded', 'success');
-          } catch (e) {
-            console.error('Drum TEX error:', e);
-            this.toast.show('Error loading drum pattern', 'error');
-          }
+        this.els.closeSettings.addEventListener('click', () => {
+          this.els.settingsPanel.classList.remove('open');
         });
 
-        this.els.btnClearTex.addEventListener('click', () => {
-          this.els.texInput.value = '';
-          this.toast.show('TEX input cleared', 'info');
+        // Setting Changes - delegates to updateSetting
+        this.els.settingNotation.addEventListener('change', (e) => {
+          this.updateSetting('notation', e.target.value);
         });
 
-        // Analysis & Tools
+        this.els.settingAutoScroll.addEventListener('change', (e) => {
+          this.updateSetting('autoScroll', e.target.checked);
+        });
+
+        this.els.settingCountIn.addEventListener('change', (e) => {
+          this.updateSetting('countIn', e.target.checked);
+        });
+
+        this.els.settingSoundFont.addEventListener('change', (e) => {
+          this.updateSetting('soundQuality', e.target.value);
+        });
+
+        this.els.resetSettings.addEventListener('click', () => {
+          this.state.settings = {
+            notation: 'scoretab',
+            autoScroll: true,
+            countIn: false,
+            soundQuality: 'medium'
+          };
+          this.applySettings();
+          this.saveSettings();
+          this.toast.show('Settings reset to defaults', 'success');
+        });
+      }
+
+      /**
+       * Binds events related to analysis tools.
+       * @returns {void}
+       */
+      bindAnalysisEvents() {
         this.els.btnPrint.addEventListener('click', () => {
           if (!this.api) {
             window.print(); // Use browser's default print
@@ -3057,14 +3120,32 @@
         this.els.btnCloseAnalysis.addEventListener('click', () => {
           this.els.dashboard.classList.add('hidden');
         });
+      }
 
-        // Close mobile menu on window resize
-        window.addEventListener('resize', () => {
-          if (window.innerWidth > 768) {
-            this.state.mobileMenuOpen = false;
-            this.els.sidebar.classList.remove('mobile-open');
+      /**
+       * Updates a specific setting and triggers necessary side effects.
+       * @param {string} key - The setting key.
+       * @param {*} value - The new value.
+       * @returns {void}
+       */
+      updateSetting(key, value) {
+        this.state.settings[key] = value;
+
+        // Handle side effects
+        if (this.api) {
+          if (key === 'notation') {
+            this.api.settings.display.staveProfile = value;
+            this.api.updateSettings();
+            this.api.render();
+          } else if (key === 'autoScroll') {
+            this.api.settings.player.scrollMode = value ? 'continuous' : 'off';
+            this.api.updateSettings();
+          } else if (key === 'countIn') {
+            this.api.countInVolume = value ? 1 : 0;
           }
-        });
+        }
+
+        this.saveSettings();
       }
 
       /**
