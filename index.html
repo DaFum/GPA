@@ -531,6 +531,26 @@
       position: relative;
     }
 
+    #custom-renderer-target {
+      margin-top: 1rem;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(15, 17, 21, 0.9));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1rem;
+      min-height: 240px;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .render-chunk {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+      overflow: hidden;
+    }
+
     /* ===== Transport Controls ===== */
     .transport-controls {
       display: flex;
@@ -1573,6 +1593,11 @@
 
       <!-- AlphaTab Container -->
       <div id="at-container" role="main" aria-label="Musical score display"></div>
+      <div
+        id="custom-renderer-target"
+        role="presentation"
+        aria-label="High fidelity score rendering"
+      ></div>
     </div>
   </main>
 
@@ -1726,21 +1751,34 @@
   <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <!-- AlphaTab Library with Fallback Loading -->
-  <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/alphaTab.min.js" 
+  <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.min.js" 
           onerror="console.error('Primary AlphaTab CDN failed, trying fallback...'); loadAlphaTabFallback();">
   </script>
   
   <script>
     // Fallback loading mechanism for AlphaTab
+    /**
+     * Attempts to load the AlphaTab library from a list of fallback CDN URLs.
+     * Iterates through the list until a successful load occurs or all options are exhausted.
+     * If all CDNs fail, initializes the app in a no-AlphaTab mode.
+     *
+     * @returns {void}
+     */
     function loadAlphaTabFallback() {
       const fallbackUrls = [
-        'https://unpkg.com/@coderline/alphatab@1.3.0/dist/alphaTab.min.js',
-        'https://cdn.skypack.dev/@coderline/alphatab@1.3.0',
-        'https://ga.jspm.io/npm:@coderline/alphatab@1.3.0/dist/alphaTab.min.js'
+        'https://unpkg.com/@coderline/alphatab@latest/dist/alphaTab.min.js',
+        'https://cdn.skypack.dev/@coderline/alphatab@latest',
+        'https://ga.jspm.io/npm:@coderline/alphatab@latest/dist/alphaTab.min.js'
       ];
       
       let currentFallback = 0;
       
+      /**
+       * Iterates through the fallback URLs, attempting to load each one in sequence.
+       * On failure, proceeds to the next URL via the error handler.
+       *
+       * @returns {void}
+       */
       function tryNextFallback() {
         if (currentFallback >= fallbackUrls.length) {
           console.error('All AlphaTab CDN sources failed');
@@ -1781,7 +1819,7 @@
       setTimeout(() => {
         if (typeof alphaTab === 'undefined' && !window.app) {
           console.error('AlphaTab not loaded after page load, attempting fallback');
-          loadAlphaTabFallback();
+          loadAlphaTabScriptFallback();
         }
       }, 1000);
     });
@@ -1792,11 +1830,24 @@
     // Using standard DOM methods instead of custom shortcuts to avoid confusion
     
     // Local Storage Helper
+    /**
+     * Helper class for managing local storage operations with a namespace prefix.
+     */
     class StorageManager {
+      /**
+       * Initializes the StorageManager.
+       * @param {string} prefix - The prefix to prepend to all storage keys. Defaults to 'protab_'.
+       */
       constructor(prefix = 'protab_') {
         this.prefix = prefix;
       }
       
+      /**
+       * Retrieves a value from local storage.
+       * @param {string} key - The key of the item to retrieve (without prefix).
+       * @param {*} defaultValue - The value to return if the key does not exist or error occurs.
+       * @returns {*} The parsed value from storage or the default value.
+       */
       get(key, defaultValue = null) {
         try {
           const value = localStorage.getItem(this.prefix + key);
@@ -1807,6 +1858,12 @@
         }
       }
       
+      /**
+       * Saves a value to local storage.
+       * @param {string} key - The key to store the value under (without prefix).
+       * @param {*} value - The value to store (will be JSON stringified).
+       * @returns {boolean} True if successful, false otherwise.
+       */
       set(key, value) {
         try {
           localStorage.setItem(this.prefix + key, JSON.stringify(value));
@@ -1817,6 +1874,11 @@
         }
       }
       
+      /**
+       * Removes a specific item from local storage.
+       * @param {string} key - The key of the item to remove (without prefix).
+       * @returns {boolean} True if successful, false otherwise.
+       */
       remove(key) {
         try {
           localStorage.removeItem(this.prefix + key);
@@ -1827,6 +1889,10 @@
         }
       }
       
+      /**
+       * Clears all items from local storage that start with the configured prefix.
+       * @returns {boolean} True if successful, false otherwise.
+       */
       clear() {
         try {
           Object.keys(localStorage)
@@ -1841,12 +1907,27 @@
     }
 
     // Toast Notification System
+    /**
+     * Manages toast notifications for the application.
+     */
     class ToastManager {
+      /**
+       * Initializes the ToastManager.
+       * @param {string} containerId - The ID of the DOM element to contain toast messages. Defaults to 'toast-container'.
+       */
       constructor(containerId = 'toast-container') {
         this.container = document.getElementById(containerId);
         this.toasts = [];
       }
       
+      /**
+       * Displays a toast notification.
+       * @param {string} message - The message content of the toast.
+       * @param {string} type - The type of toast ('info', 'success', 'warning', 'error'). Defaults to 'info'.
+       * @param {string} title - Optional title for the toast.
+       * @param {number} duration - Duration in milliseconds before auto-dismissing. Defaults to 4000.
+       * @returns {HTMLElement} The created toast element.
+       */
       show(message, type = 'info', title = '', duration = 4000) {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
@@ -1887,6 +1968,11 @@
         return toast;
       }
       
+      /**
+       * Removes a specific toast notification.
+       * @param {HTMLElement} toast - The toast element to remove.
+       * @returns {void}
+       */
       remove(toast) {
         if (!toast || !this.toasts.includes(toast)) return;
         
@@ -1902,10 +1988,19 @@
         }, 250);
       }
       
+      /**
+       * Removes all active toast notifications.
+       * @returns {void}
+       */
       clearAll() {
         this.toasts.forEach(toast => this.remove(toast));
       }
       
+      /**
+       * Escapes HTML characters in a string to prevent XSS.
+       * @param {string} text - The text to escape.
+       * @returns {string} The escaped text safe for HTML insertion.
+       */
       escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -1914,11 +2009,22 @@
     }
 
     // ===== Score Analyzer Class =====
+    /**
+     * Analyzes musical scores to provide statistical and theoretical insights.
+     */
     class ScoreAnalyzer {
+      /**
+       * Initializes the ScoreAnalyzer with a score object.
+       * @param {alphaTab.model.Score} score - The score object to analyze.
+       */
       constructor(score) {
         this.score = score;
       }
 
+      /**
+       * Extracts metadata from the score.
+       * @returns {{title: string, artist: string, album: string, bars: number, tempo: number, mainSig: string, tempoEvents: number, timeSigChanges: number}} An object containing title, artist, album, bar count, tempo, time signature, etc.
+       */
       getMeta() {
         const s = this.score;
         return {
@@ -1933,6 +2039,10 @@
         };
       }
 
+      /**
+       * Calculates the number of time signature changes in the score.
+       * @returns {number} The count of time signature changes.
+       */
       getTimeSigChanges() {
         let changes = 0;
         let lastSig = null;
@@ -1944,6 +2054,11 @@
         return changes;
       }
 
+      /**
+       * Analyzes the harmonic content of the score.
+       * Calculates pitch distribution and estimates the key and scale.
+       * @returns {{histogram: number[], totalNotes: number, bestKey: string, bestScale: string}} An object containing pitch histogram, total notes, estimated key, and scale.
+       */
       getHarmony() {
         const pitchCounts = new Array(12).fill(0);
         let totalNotes = 0;
@@ -1975,6 +2090,11 @@
         };
       }
 
+      /**
+       * Detects the most likely musical key based on pitch distribution.
+       * @param {number[]} pitchCounts - Array of 12 integers representing the count of each chromatic pitch class (C, C#, D, D#, E, F, F#, G, G#, A, A#, B in semitone order).
+       * @returns {{root: string, scale: string}} An object containing the root note and scale type (Major/Minor).
+       */
       detectKey(pitchCounts) {
         const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
         const majorPattern = [2,2,1,2,2,2,1];
@@ -2014,6 +2134,10 @@
         return bestKey;
       }
 
+      /**
+       * Analyzes the rhythmic density of the score.
+       * @returns {{density: number[], maxDensity: number}} An object containing an array of note counts per bar and the maximum density found.
+       */
       getRhythm() {
         const barDensity = [];
         let maxDensity = 0;
@@ -2038,6 +2162,12 @@
         return { density: barDensity, maxDensity };
       }
 
+      /**
+       * Calculates a complexity score and gathers technique statistics.
+       * @param {Object} rhythm - The rhythm analysis result.
+       * @param {Object} harmony - The harmony analysis result.
+       * @returns {{techniques: {bends: number, slides: number, hammers: number, deadNotes: number, palmMutes: number}, totalScore: number}} An object containing technique counts and a total complexity score (0-100).
+       */
       getTechniqueAndComplexity(rhythm, harmony) {
         const techniques = {
           bends: 0,
@@ -2078,6 +2208,10 @@
         return { techniques, totalScore: complexityScore };
       }
 
+      /**
+       * Retrieves information about the instruments (tracks) in the score.
+       * @returns {Array<Object>} An array of objects describing each track (name, type, tuning, string count).
+       */
       getInstruments() {
         return this.score.tracks.map(track => ({
           name: track.name,
@@ -2089,11 +2223,21 @@
     }
 
     // ===== Main Application Class =====
+    /**
+     * The main application controller for ProTab Studio.
+     * Manages UI state, score rendering, audio playback, and user interactions.
+     */
     class ProTabApp {
+      static DEFAULT_RENDERER_WIDTH = 1200;
+      static SOUNDFONT_LOAD_TIMEOUT_MS = 10000;
+
       constructor(noAlphaTab = false) {
         this.noAlphaTabMode = noAlphaTab;
         this.api = null;
         this.analyzer = null;
+        this.score = null;
+        this.customRenderer = null;
+        this.synth = null;
         this.storage = new StorageManager();
         this.toast = new ToastManager();
         
@@ -2162,14 +2306,22 @@
           // Analysis Dashboard
           dashboard: document.getElementById('analysis-dashboard'),
           btnCloseAnalysis: document.getElementById('btn-close-analysis'),
-          
+
           // Loading
-          loadingOverlay: document.getElementById('loading-overlay')
+          loadingOverlay: document.getElementById('loading-overlay'),
+
+          // Custom rendering
+          customRenderTarget: document.getElementById('custom-renderer-target')
         };
 
         this.init();
       }
 
+      /**
+       * Initializes the application.
+       * Loads settings, checks for AlphaTab availability, and sets up events.
+       * @returns {void}
+       */
       init() {
         this.loadSettings();
         
@@ -2192,6 +2344,10 @@
         }
       }
 
+      /**
+       * Loads user settings and theme preferences from local storage.
+       * @returns {void}
+       */
       loadSettings() {
         const saved = this.storage.get('settings');
         if (saved) {
@@ -2207,6 +2363,11 @@
         this.applySettings();
       }
 
+      /**
+       * Applies the current settings to the UI and AlphaTab instance.
+       * Updates notation display, auto-scroll, count-in, and other preferences.
+       * @returns {void}
+       */
       applySettings() {
         // Apply notation setting
         this.els.settingNotation.value = this.state.settings.notation;
@@ -2224,12 +2385,74 @@
         }
       }
 
+      /**
+       * Saves current settings and UI state to local storage.
+       * @returns {void}
+       */
       saveSettings() {
         this.storage.set('settings', this.state.settings);
         this.storage.set('theme', this.state.theme);
         this.storage.set('sidebarCollapsed', this.state.sidebarCollapsed);
       }
 
+      /**
+       * Persists the current score and settings for seamless session restores.
+       * @param {alphaTab.model.Score} [score] The score instance to persist.
+       * @returns {void}
+       */
+      saveSession(score) {
+        if (typeof alphaTab === 'undefined' || !alphaTab.model?.JsonConverter) return;
+
+        const activeScore = score || this.api?.score || this.score;
+        if (!activeScore) return;
+
+        try {
+          const scoreJson = alphaTab.model.JsonConverter.scoreToJson(activeScore);
+          const settingsJson = alphaTab.model.JsonConverter.settingsToJson(this.api?.settings || new alphaTab.Settings());
+
+          this.storage.set('session', {
+            score: scoreJson,
+            settings: settingsJson,
+            timestamp: Date.now()
+          });
+        } catch (error) {
+          console.error('Session save failed:', error);
+        }
+      }
+
+      /**
+       * Restores the last saved score session when available.
+       * @returns {void}
+       */
+      restoreSession() {
+        if (typeof alphaTab === 'undefined' || !alphaTab.model?.JsonConverter) return;
+
+        const session = this.storage.get('session');
+        if (!session) return;
+
+        try {
+          const restoredSettings = alphaTab.model.JsonConverter.jsonToSettings(session.settings);
+          const restoredScore = alphaTab.model.JsonConverter.jsonToScore(session.score, restoredSettings);
+
+          if (this.api) {
+            this.api.settings = restoredSettings;
+            this.api.updateSettings();
+            this.applyScore(restoredScore, { skipApiRender: false });
+          }
+
+          this.state.settings.notation = restoredSettings.display?.staveProfile || this.state.settings.notation;
+          this.applySettings();
+          this.toast.show('Session restored from last visit', 'success');
+        } catch (error) {
+          console.error('Session restore failed:', error);
+        }
+      }
+
+      /**
+       * Initializes the AlphaTab API with the main configuration.
+       * Sets up the engine, display options, and player.
+       * @returns {void}
+       */
       initAlphaTab() {
         try {
           // Check for AlphaTab availability
@@ -2293,10 +2516,13 @@
             };
             
             this.api = new alphaTab.AlphaTabApi(container, settings);
-            
+
             if (this.api) {
               console.log('AlphaTab initialized successfully');
               this.setupAlphaTabEvents();
+              this.initializeSynth();
+              this.setupCustomRenderer();
+              this.restoreSession();
             } else {
               throw new Error('API object not created');
             }
@@ -2311,11 +2537,11 @@
         }
       }
       
-      enhanceAlphaTabSettings() {
-        // This method is no longer needed as we initialize with full settings
-        console.log('AlphaTab already configured with full settings');
-      }
-      
+      /**
+       * Initializes AlphaTab with a fallback configuration if the primary initialization fails.
+       * Uses a simpler setup (e.g., tab only, no workers) to attempt to get a working state.
+       * @returns {void}
+       */
       initAlphaTabFallback() {
         // Ensure container exists
         const container = document.getElementById('at-container');
@@ -2324,7 +2550,7 @@
           this.showBasicInterface();
           return;
         }
-        
+
         // Fallback initialization with basic but functional settings
         const settings = {
           core: {
@@ -2344,10 +2570,13 @@
             soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
           }
         };
-        
+
         try {
           this.api = new alphaTab.AlphaTabApi(container, settings);
           this.setupAlphaTabEvents();
+          this.initializeSynth();
+          this.setupCustomRenderer();
+          this.restoreSession();
           this.toast.show('Running in fallback mode - tab notation only', 'warning');
         } catch (error) {
           console.error('Failed to initialize AlphaTab even in fallback mode:', error);
@@ -2356,7 +2585,56 @@
           this.showBasicInterface();
         }
       }
+
+      /**
+       * Creates the custom ScoreRenderer instance for advanced, chunked rendering.
+       * @returns {void}
+       */
+      setupCustomRenderer() {
+        if (this.customRenderer || !this.els.customRenderTarget) return;
+        if (typeof alphaTab === 'undefined' || !alphaTab.rendering?.ScoreRenderer) return;
+
+        const settings = new alphaTab.Settings();
+        settings.core.engine = 'svg';
+        settings.display.staveProfile = this.state.settings.notation;
+        settings.display.scale = this.state.zoom / 100;
+
+        this.customRenderer = new alphaTab.rendering.ScoreRenderer(settings);
+        const width = this.els.customRenderTarget.clientWidth;
+        this.customRenderer.width = width > 0 ? Math.max(width, 800) : ProTabApp.DEFAULT_RENDERER_WIDTH;
+
+        this.customRenderer.partialLayoutFinished.on((result) => {
+          try {
+            if (result?.id !== undefined) {
+              this.customRenderer.renderResult(result.id);
+            }
+          } catch (error) {
+            console.error('Render result failed:', error);
+          }
+        });
+
+        this.customRenderer.partialRenderFinished.on((result) => {
+          try {
+            this.displayRenderChunk(result.renderResult, result.width, result.height);
+          } catch (error) {
+            console.error('Render chunk display failed:', error);
+          }
+        });
+
+        this.customRenderer.renderFinished.on((summary) => {
+          try {
+            this.onCustomRenderComplete(summary.totalWidth, summary.totalHeight);
+          } catch (error) {
+            console.error('Render complete handler failed:', error);
+          }
+        });
+      }
       
+      /**
+       * Binds event listeners to the AlphaTab API.
+       * Handles render events, player state changes, and errors.
+       * @returns {void}
+       */
       setupAlphaTabEvents() {
         if (!this.api) return;
         
@@ -2370,7 +2648,7 @@
         });
 
         this.api.scoreLoaded.on((score) => {
-          this.onScoreLoaded(score);
+          this.applyScore(score, { skipApiRender: true });
         });
 
         this.api.playerReady.on(() => {
@@ -2394,7 +2672,7 @@
         this.api.error.on((error) => {
           console.error('AlphaTab Error:', error);
           this.toggleLoading(false);
-          
+
           // Handle specific error types
           if (error.type === 'font') {
             console.warn('Font loading issue detected, attempting fallback');
@@ -2404,7 +2682,60 @@
           }
         });
       }
-      
+
+      /**
+       * Initializes the AlphaSynth controller with dynamic output selection and soundfont loading.
+       * @returns {void}
+       */
+      initializeSynth() {
+        if (this.synth || typeof alphaTab === 'undefined' || !alphaTab.synth) return;
+
+        const supportsAudioWorklets = window.isSecureContext && 'AudioWorkletNode' in window;
+
+        try {
+          const output = supportsAudioWorklets
+            ? new alphaTab.synth.AlphaSynthAudioWorkletOutput()
+            : new alphaTab.synth.AlphaSynthWebAudioOutput();
+
+          const scriptUrl = 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.js';
+          this.synth = new alphaTab.synth.AlphaSynthWebWorkerApi(output, scriptUrl, alphaTab.LogLevel.Info);
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), ProTabApp.SOUNDFONT_LOAD_TIMEOUT_MS);
+
+          fetch('https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2', {
+            signal: controller.signal
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.arrayBuffer();
+            })
+            .then((buffer) => {
+              clearTimeout(timeoutId);
+              if (this.synth) {
+                this.synth.loadSoundFont(new Uint8Array(buffer));
+              }
+            })
+            .catch((error) => {
+              clearTimeout(timeoutId);
+              if (error.name === 'AbortError') {
+                console.error('SoundFont load timeout');
+              } else {
+                console.error('SoundFont load error:', error);
+              }
+            });
+        } catch (error) {
+          console.error('AlphaSynth initialization failed:', error);
+        }
+      }
+
+      /**
+       * Displays a basic fallback interface when AlphaTab cannot be loaded.
+       * Allows the user to reload or try alternative modes.
+       * @returns {void}
+       */
       showBasicInterface() {
         // Show a basic interface when AlphaTab completely fails
         const container = document.getElementById('at-container');
@@ -2440,6 +2771,10 @@
         `;
       }
       
+      /**
+       * Attempts to initialize AlphaTab in an alternative mode (e.g. SVG engine) when standard modes fail.
+       * @returns {void}
+       */
       tryAlternativeMode() {
         // Attempt to use a CDN-free version or local resources
         this.toggleLoading(true);
@@ -2496,6 +2831,11 @@
         }, 1000);
       }
 
+      /**
+       * Binds all DOM event listeners for the application UI.
+       * Handles clicks, changes, inputs, and drag-and-drop events.
+       * @returns {void}
+       */
       bindEvents() {
         // Theme Toggle
         this.els.themeBtn.addEventListener('click', () => {
@@ -2524,33 +2864,35 @@
           this.saveSettings();
         });
 
-        this.els.settingAutoScroll.addEventListener('change', (e) => {
-          this.state.settings.autoScroll = e.target.checked;
-          if (this.api) {
-            this.api.settings.player.scrollMode = e.target.checked ? 'continuous' : 'off';
-            this.api.updateSettings();
-          }
-          this.saveSettings();
-        });
+       * Delegates to specific binding methods for cleaner organization.
+       * @returns {void}
+       */
+      bindEvents() {
+        this.bindHeaderEvents();
+        this.bindSidebarEvents();
+        this.bindTransportEvents();
+        this.bindSettingsEvents();
+        this.bindAnalysisEvents();
 
-        this.els.settingCountIn.addEventListener('change', (e) => {
-          this.state.settings.countIn = e.target.checked;
-          if (this.api) {
-            this.api.countInVolume = e.target.checked ? 1 : 0;
+        // Window resize listener to handle responsive state
+        window.addEventListener('resize', () => {
+          if (window.innerWidth > 768) {
+            this.state.mobileMenuOpen = false;
+            this.els.sidebar.classList.remove('mobile-open');
           }
-          this.saveSettings();
         });
+      }
 
-        this.els.resetSettings.addEventListener('click', () => {
-          this.state.settings = {
-            notation: 'scoretab',
-            autoScroll: true,
-            countIn: false,
-            soundQuality: 'medium'
-          };
-          this.applySettings();
+      /**
+       * Binds events related to the header (theme, settings, fullscreen, export).
+       * @returns {void}
+       */
+      bindHeaderEvents() {
+        // Theme Toggle
+        this.els.themeBtn.addEventListener('click', () => {
+          this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+          this.applyTheme();
           this.saveSettings();
-          this.toast.show('Settings reset to defaults', 'success');
         });
 
         // Fullscreen
@@ -2574,7 +2916,13 @@
           this.state.mobileMenuOpen = !this.state.mobileMenuOpen;
           this.els.sidebar.classList.toggle('mobile-open', this.state.mobileMenuOpen);
         });
+      }
 
+      /**
+       * Binds events related to the sidebar (toggle, file upload, TEX editor).
+       * @returns {void}
+       */
+      bindSidebarEvents() {
         // Sidebar Toggle
         this.els.sidebarToggle.addEventListener('click', () => {
           this.state.sidebarCollapsed = !this.state.sidebarCollapsed;
@@ -2626,7 +2974,62 @@
           if (file) this.loadFile(file);
         });
 
-        // Transport Controls
+        // TEX Editor
+        this.els.btnRenderTex.addEventListener('click', () => {
+          const tex = this.els.texInput.value.trim();
+          if (!tex) {
+            this.toast.show('Please enter some TEX notation', 'warning');
+            return;
+          }
+
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+
+          try {
+            this.api.tex(tex);
+            this.toast.show('TEX rendered successfully', 'success');
+          } catch (e) {
+            console.error('TEX rendering error:', e);
+            this.toast.show(`Invalid TEX notation: ${e.message || 'Unknown error'}`, 'error');
+          }
+        });
+
+        this.els.btnDemoDrums.addEventListener('click', () => {
+          if (!this.api) {
+            this.toast.show('Music notation system not available', 'error');
+            return;
+          }
+          const drumTex = `\\title "Drum Pattern"
+\\tempo 120
+\\track "Drums"
+\\staff{score} \\tuning percussion
+.
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |
+36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |`;
+          this.els.texInput.value = drumTex;
+          try {
+            this.api.tex(drumTex);
+            this.toast.show('Drum demo loaded', 'success');
+          } catch (e) {
+            console.error('Drum TEX error:', e);
+            this.toast.show('Error loading drum pattern', 'error');
+          }
+        });
+
+        this.els.btnClearTex.addEventListener('click', () => {
+          this.els.texInput.value = '';
+          this.toast.show('TEX input cleared', 'info');
+        });
+      }
+
+      /**
+       * Binds events related to playback and transport (play, stop, tempo, zoom).
+       * @returns {void}
+      */
+      bindTransportEvents() {
+        // Play/Pause
         this.els.playPauseBtn.addEventListener('click', () => {
           if (!this.api || !this.api.score) {
             this.toast.show('Please load a file first', 'warning');
@@ -2678,57 +3081,57 @@
         this.els.zoomOut.addEventListener('click', () => {
           this.changeZoom(-10);
         });
+      }
 
-        // TEX Editor
-        this.els.btnRenderTex.addEventListener('click', () => {
-          const tex = this.els.texInput.value.trim();
-          if (!tex) {
-            this.toast.show('Please enter some TEX notation', 'warning');
-            return;
-          }
-          
-          if (!this.api) {
-            this.toast.show('Music notation system not available', 'error');
-            return;
-          }
-          
-          try {
-            this.api.tex(tex);
-            this.toast.show('TEX rendered successfully', 'success');
-          } catch (e) {
-            console.error('TEX rendering error:', e);
-            this.toast.show(`Invalid TEX notation: ${e.message || 'Unknown error'}`, 'error');
-          }
+      /**
+       * Binds events related to the settings panel.
+       * @returns {void}
+       */
+      bindSettingsEvents() {
+        // Settings Panel Toggle
+        this.els.settingsBtn.addEventListener('click', () => {
+          this.els.settingsPanel.classList.add('open');
         });
 
-        this.els.btnDemoDrums.addEventListener('click', () => {
-          if (!this.api) {
-            this.toast.show('Music notation system not available', 'error');
-            return;
-          }
-          const drumTex = `\\title "Drum Pattern"
-\\tempo 120
-\\track "Drums"
-\\staff{score} \\tuning percussion
-.
-36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |
-36.8 36.8 38.8 36.8 36.8 36.8 38.8 36.8 |`;
-          this.els.texInput.value = drumTex;
-          try {
-            this.api.tex(drumTex);
-            this.toast.show('Drum demo loaded', 'success');
-          } catch (e) {
-            console.error('Drum TEX error:', e);
-            this.toast.show('Error loading drum pattern', 'error');
-          }
+        this.els.closeSettings.addEventListener('click', () => {
+          this.els.settingsPanel.classList.remove('open');
         });
 
-        this.els.btnClearTex.addEventListener('click', () => {
-          this.els.texInput.value = '';
-          this.toast.show('TEX input cleared', 'info');
+        // Setting Changes - delegates to updateSetting
+        this.els.settingNotation.addEventListener('change', (e) => {
+          this.updateSetting('notation', e.target.value);
         });
 
-        // Analysis & Tools
+        this.els.settingAutoScroll.addEventListener('change', (e) => {
+          this.updateSetting('autoScroll', e.target.checked);
+        });
+
+        this.els.settingCountIn.addEventListener('change', (e) => {
+          this.updateSetting('countIn', e.target.checked);
+        });
+
+        this.els.settingSoundFont.addEventListener('change', (e) => {
+          this.updateSetting('soundQuality', e.target.value);
+        });
+
+        this.els.resetSettings.addEventListener('click', () => {
+          this.state.settings = {
+            notation: 'scoretab',
+            autoScroll: true,
+            countIn: false,
+            soundQuality: 'medium'
+          };
+          this.applySettings();
+          this.saveSettings();
+          this.toast.show('Settings reset to defaults', 'success');
+        });
+      }
+
+      /**
+       * Binds events related to analysis tools.
+       * @returns {void}
+       */
+      bindAnalysisEvents() {
         this.els.btnPrint.addEventListener('click', () => {
           if (!this.api) {
             window.print(); // Use browser's default print
@@ -2748,16 +3151,38 @@
         this.els.btnCloseAnalysis.addEventListener('click', () => {
           this.els.dashboard.classList.add('hidden');
         });
-
-        // Close mobile menu on window resize
-        window.addEventListener('resize', () => {
-          if (window.innerWidth > 768) {
-            this.state.mobileMenuOpen = false;
-            this.els.sidebar.classList.remove('mobile-open');
-          }
-        });
       }
 
+      /**
+       * Updates a specific setting and triggers necessary side effects.
+       * @param {string} key - The setting key.
+       * @param {*} value - The new value.
+       * @returns {void}
+       */
+      updateSetting(key, value) {
+        this.state.settings[key] = value;
+
+        // Handle side effects
+        if (this.api) {
+          if (key === 'notation') {
+            this.api.settings.display.staveProfile = value;
+            this.api.updateSettings();
+            this.api.render();
+          } else if (key === 'autoScroll') {
+            this.api.settings.player.scrollMode = value ? 'continuous' : 'off';
+            this.api.updateSettings();
+          } else if (key === 'countIn') {
+            this.api.countInVolume = value ? 1 : 0;
+          }
+        }
+
+        this.saveSettings();
+      }
+
+      /**
+       * Sets up global keyboard shortcuts for playback control, zooming, and file operations.
+       * @returns {void}
+       */
       setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
           // Skip if user is typing in input/textarea
@@ -2823,6 +3248,11 @@
         });
       }
 
+      /**
+       * Applies the current theme (light/dark) to the document body.
+       * Updates the theme toggle button icon.
+       * @returns {void}
+       */
       applyTheme() {
         if (this.state.theme === 'light') {
           document.body.setAttribute('data-theme', 'light');
@@ -2833,11 +3263,23 @@
         }
       }
 
+      /**
+       * Adjusts the zoom level by a delta amount.
+       * Clamps the zoom level between 50% and 200%.
+       * @param {number} delta - The amount to change the zoom by (positive or negative).
+       * @returns {void}
+       */
       changeZoom(delta) {
         this.state.zoom = Math.max(50, Math.min(200, this.state.zoom + delta));
         this.setZoom(this.state.zoom);
       }
 
+      /**
+       * Sets the zoom level to a specific percentage.
+       * Updates the UI and triggers a re-render of the score.
+       * @param {number} zoom - The new zoom percentage (e.g., 100).
+       * @returns {void}
+       */
       setZoom(zoom) {
         this.state.zoom = zoom;
         this.els.zoomVal.textContent = `${zoom}%`;
@@ -2849,61 +3291,185 @@
         }
       }
 
+      /**
+       * Loads a supported file through AlphaTab's low-level ScoreLoader for fine-grained control.
+       * @param {File} file The file selected by the user.
+       * @returns {void}
+       */
       loadFile(file) {
         if (!file) return;
-        
+
         const validTypes = ['.gp', '.gp3', '.gp4', '.gp5', '.gp6', '.gp7', '.gpx', '.xml', '.musicxml', '.mxl', '.tex'];
         const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-        
+
         if (!validTypes.includes(ext)) {
           this.toast.show(`Invalid file type. Supported: ${validTypes.join(', ')}`, 'error');
           return;
         }
-        
+
         if (!this.api) {
           this.toast.show('Music notation system not available. Cannot load files.', 'error');
-          // Try to reinitialize
           this.tryAlternativeMode();
           return;
         }
-        
+
         this.toggleLoading(true);
         const reader = new FileReader();
-        
+
         reader.onload = (e) => {
           try {
-            this.api.load(e.target.result);
+            const data = new Uint8Array(e.target.result);
+            const settings = this.api?.settings || new alphaTab.Settings();
+            const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(data, settings);
+            this.applyScore(score, { fileMeta: file });
             this.toast.show(`File loaded: ${file.name}`, 'success');
-            
-            // Store recent file info
-            this.storage.set('recentFile', {
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              lastModified: file.lastModified
-            });
           } catch (error) {
             this.toggleLoading(false);
+            if (error instanceof alphaTab.importer.UnsupportedFormatError) {
+              this.toast.show('Unsupported file format', 'error');
+              return;
+            }
             this.toast.show('Failed to load file. Please check the format.', 'error');
             console.error('Load error:', error);
           }
         };
-        
+
         reader.onerror = () => {
           this.toggleLoading(false);
           this.toast.show('Error reading file', 'error');
         };
-        
+
         reader.readAsArrayBuffer(file);
       }
 
+      /**
+       * Applies a parsed score to renderers, analyzers, and persistence.
+       * @param {alphaTab.model.Score} score Parsed score instance.
+       * @param {{ skipApiRender?: boolean, fileMeta?: File }} options Optional rendering options.
+       * @returns {void}
+       */
+      applyScore(score, options = {}) {
+        if (this.score && score) {
+          try {
+            const currentScoreJson = alphaTab.model.JsonConverter.scoreToJson(this.score);
+            const newScoreJson = alphaTab.model.JsonConverter.scoreToJson(score);
+            if (currentScoreJson === newScoreJson) {
+              this.toggleLoading(false);
+              return;
+            }
+          } catch (e) {
+            // If comparison fails, proceed with applying the new score
+            console.warn('Score comparison failed, applying new score anyway:', e);
+          }
+        }
+
+        this.score = score;
+        if (this.api && !options.skipApiRender) {
+          this.api.renderScore(score);
+        }
+
+        this.renderWithCustomRenderer(score);
+        this.onScoreLoaded(score);
+        this.saveSession(score);
+
+        if (options.fileMeta) {
+          this.storage.set('recentFile', {
+            name: options.fileMeta.name,
+            size: options.fileMeta.size,
+            type: options.fileMeta.type,
+            lastModified: options.fileMeta.lastModified
+          });
+        }
+
+        this.toggleLoading(false);
+      }
+
+      /**
+       * Callback handler when a score is successfully loaded.
+       * Updates the sidebar, initializes the analyzer, and refreshes the dashboard.
+       * @param {alphaTab.model.Score} score - The loaded score object.
+       * @returns {void}
+       */
       onScoreLoaded(score) {
         this.renderSidebar(score);
         this.analyzer = new ScoreAnalyzer(score);
         this.updateAnalysisDashboard();
-        this.toggleLoading(false);
       }
 
+      /**
+       * Uses the low-level ScoreRenderer to render the score into custom chunks for smoother updates.
+       * @param {alphaTab.model.Score} score Parsed score to render.
+       * @returns {void}
+       */
+      renderWithCustomRenderer(score) {
+        if (!this.customRenderer || !this.els.customRenderTarget) return;
+
+        this.els.customRenderTarget.innerHTML = '';
+
+        try {
+          const width = this.els.customRenderTarget.clientWidth;
+          this.customRenderer.width = width > 0 ? Math.max(width, 800) : ProTabApp.DEFAULT_RENDERER_WIDTH;
+          this.customRenderer.settings.display.staveProfile = this.state.settings.notation;
+          this.customRenderer.settings.display.scale = this.state.zoom / 100;
+          this.customRenderer.renderScore(score);
+        } catch (error) {
+          console.error('Custom renderer failed:', error);
+        }
+      }
+
+      /**
+       * Displays a partially rendered chunk inside the custom renderer target.
+       * @param {HTMLElement|SVGElement|{element: HTMLElement}} renderResult Rendered score fragment.
+       * @param {number} width Chunk width in pixels.
+       * @param {number} height Chunk height in pixels.
+       * @returns {void}
+       */
+      displayRenderChunk(renderResult, width, height) {
+        const chunk = document.createElement('div');
+        chunk.className = 'render-chunk';
+        if (Number.isFinite(width)) chunk.style.width = `${width}px`;
+        if (Number.isFinite(height)) chunk.style.height = `${height}px`;
+
+        const content = renderResult?.element || renderResult;
+
+        if (content instanceof Element) {
+          chunk.appendChild(content);
+        } else if (typeof content === 'string') {
+          const trimmed = content.trim();
+          if (trimmed.startsWith('<svg')) {
+            const doc = new DOMParser().parseFromString(trimmed, 'image/svg+xml');
+            const svgElement = doc.documentElement;
+            if (svgElement && svgElement.nodeName.toLowerCase() !== 'parsererror') {
+              chunk.appendChild(svgElement);
+            } else {
+              console.warn('Failed to parse SVG chunk');
+            }
+          }
+        } else {
+          console.warn('Unsupported renderResult content skipped');
+        }
+
+        this.els.customRenderTarget.appendChild(chunk);
+      }
+
+      /**
+       * Updates render meta data when custom rendering completes.
+       * @param {number} totalWidth Combined render width.
+       * @param {number} totalHeight Combined render height.
+       * @returns {void}
+       */
+      onCustomRenderComplete(totalWidth, totalHeight) {
+        if (this.els.customRenderTarget) {
+          this.els.customRenderTarget.setAttribute('data-render-size', `${Math.round(totalWidth)}x${Math.round(totalHeight)}`);
+        }
+      }
+
+      /**
+       * Renders the sidebar content based on the loaded score.
+       * Populates metadata and the track list.
+       * @param {alphaTab.model.Score} score - The score object containing metadata and tracks.
+       * @returns {void}
+       */
       renderSidebar(score) {
         // Update metadata
         this.els.metaContainer.innerHTML = `
@@ -3017,6 +3583,11 @@
         });
       }
 
+      /**
+       * Updates the analysis dashboard with data from the ScoreAnalyzer.
+       * Populates charts, statistics, and instrument tables.
+       * @returns {void}
+       */
       updateAnalysisDashboard() {
         if (!this.analyzer) return;
         
@@ -3125,12 +3696,69 @@
         instTable.innerHTML = tableHtml;
       }
 
-      handleExport() {
-        if (!this.api || !this.api.score) {
-          this.toast.show('Please load a file first', 'warning');
+      /**
+       * Generates a MIDI file from the current score and triggers download.
+       * @returns {void}
+       */
+      exportToMidi() {
+        if (!this.score || typeof alphaTab === 'undefined') {
+          this.toast.show('No score available for MIDI export', 'warning');
           return;
         }
+
+        try {
+          const midiFile = new alphaTab.midi.MidiFile();
+          const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midiFile, true);
+          const generator = new alphaTab.midi.MidiFileGenerator(
+            this.score,
+            this.api?.settings || new alphaTab.Settings(),
+            handler
+          );
+          generator.generate();
+
+          this.downloadMidiFile(midiFile);
+          this.toast.show('MIDI export ready', 'success');
+        } catch (error) {
+          console.error('MIDI export error:', error);
+          this.toast.show('Unable to export MIDI file', 'error');
+        }
+      }
+
+      /**
+       * Downloads a generated MIDI file to the user's device.
+       * @param {alphaTab.midi.MidiFile} midiFile The generated MIDI payload.
+       * @returns {void}
+       */
+      downloadMidiFile(midiFile) {
+        const buffer = midiFile.toBinary();
+        const blob = new Blob([buffer], { type: 'audio/midi' });
+        const url = URL.createObjectURL(blob);
         
+        try {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${this.score?.title ?? 'export'}.mid`;
+          document.body.appendChild(link);
+          link.click();
+          
+          // Use a timeout to ensure the download has initiated before cleanup.
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }, 100);
+        } catch (error) {
+          console.error('MIDI download failed:', error);
+          URL.revokeObjectURL(url);
+          throw error;
+        }
+      }
+
+      /**
+       * Handles the export button click.
+       * Shows a menu with export options and triggers the selected export action.
+       * @returns {void}
+       */
+      handleExport() {
         // Create export menu
         const formats = ['PDF', 'MIDI', 'Audio (WAV)', 'Guitar Pro 5'];
         const menu = document.createElement('div');
@@ -3153,8 +3781,12 @@
           btn.textContent = format;
           btn.onclick = () => {
             document.body.removeChild(menu);
+            if (format === 'MIDI') {
+              this.exportToMidi();
+              return;
+            }
+
             this.toast.show(`Export to ${format} coming soon!`, 'info');
-            // Here you would implement actual export functionality
           };
           menu.appendChild(btn);
         });
@@ -3174,12 +3806,21 @@
         }, 0);
       }
 
+      /**
+       * Updates the transport controls UI (Play/Pause button) based on playback state.
+       * @returns {void}
+       */
       updateTransportUI() {
         this.els.playPauseBtn.innerHTML = this.state.isPlaying 
           ? '<i class="fa-solid fa-pause"></i>' 
           : '<i class="fa-solid fa-play"></i>';
       }
 
+      /**
+       * Toggles the visibility of the loading overlay.
+       * @param {boolean} show - If true, shows the overlay; otherwise hides it.
+       * @returns {void}
+       */
       toggleLoading(show) {
         if (show) {
           this.els.loadingOverlay.classList.remove('hidden');
@@ -3190,6 +3831,11 @@
         }
       }
 
+      /**
+       * Formats a time in milliseconds to MM:SS string.
+       * @param {number} ms - Time in milliseconds.
+       * @returns {string} The formatted time string.
+       */
       formatTime(ms) {
         const totalSec = Math.floor(ms / 1000);
         const min = Math.floor(totalSec / 60);
@@ -3197,6 +3843,11 @@
         return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
       }
 
+      /**
+       * Escapes HTML characters in a string to prevent XSS.
+       * @param {string} text - The text to escape.
+       * @returns {string} The escaped text safe for HTML insertion.
+       */
       escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -3205,6 +3856,11 @@
     }
 
     // Initialize app when DOM is ready
+    /**
+     * Bootstraps the application when the DOM is ready.
+     * Ensures all critical elements are present before initializing the main app controller.
+     * @returns {void}
+     */
     function initializeApp() {
       // Ensure DOM is completely ready
       if (document.getElementById('at-container')) {
